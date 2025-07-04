@@ -474,6 +474,9 @@ async function _injectDamageRoll(message, html) {
     const rollHTML = $(await new ChatMessage5e(chatData).renderHTML()).find('.dice-roll');
     rollHTML.find('.dice-tooltip').prepend(rollHTML.find('.dice-formula'));
     rollHTML.find('.dice-result').addClass('rsr-damage');
+    
+    // Add die tracking data attributes for reroll functionality
+    _addDieTrackingAttributes(rollHTML, rolls);
 
     const header = message.flags[MODULE_SHORT].isHealing
         ? {            
@@ -732,6 +735,67 @@ function _getApplyDamage(message, dice, multiplier) {
 
     const properties = new Set(message.rolls.find(r => r instanceof CONFIG.Dice.DamageRoll)?.options?.properties ?? []);
     return { value: value, type: multiplier < 0 ? 'healing' : type, properties: properties };
+}
+
+/**
+ * Adds data attributes to dice elements for tracking individual dice for reroll functionality.
+ * @param {jQuery} rollHTML The HTML element containing the dice roll display.
+ * @param {Array} rolls The array of DamageRoll objects.
+ * @private
+ */
+function _addDieTrackingAttributes(rollHTML, rolls) {
+    try {
+        // Find all dice elements in the tooltip
+        const tooltipParts = rollHTML.find('.dice-tooltip .tooltip-part');
+        
+        let rollIndex = 0;
+        
+        tooltipParts.each((partIndex, part) => {
+            const $part = $(part);
+            const diceElements = $part.find('.dice');
+            
+            if (diceElements.length > 0 && rollIndex < rolls.length) {
+                const roll = rolls[rollIndex];
+                let termIndex = 0;
+                
+                // Find die terms in the roll
+                const dieTerms = roll.terms.filter(term => term instanceof foundry.dice.terms.Die);
+                
+                diceElements.each((diceIndex, dice) => {
+                    const $dice = $(dice);
+                    
+                    if (termIndex < dieTerms.length) {
+                        const term = dieTerms[termIndex];
+                        
+                        // Add tracking attributes to the dice container
+                        $dice.attr('data-roll-index', rollIndex);
+                        $dice.attr('data-term-index', termIndex);
+                        $dice.attr('data-die-faces', term.faces);
+                        $dice.addClass('rsr-rerollable-dice');
+                        
+                        // Add attributes to individual die results
+                        const dieResults = $dice.find('.die');
+                        dieResults.each((resultIndex, dieResult) => {
+                            const $dieResult = $(dieResult);
+                            if (resultIndex < term.results.length) {
+                                $dieResult.attr('data-die-index', resultIndex);
+                                $dieResult.attr('data-die-result', term.results[resultIndex].result);
+                                $dieResult.addClass('rsr-rerollable-die');
+                            }
+                        });
+                        
+                        termIndex++;
+                    }
+                });
+                
+                rollIndex++;
+            }
+        });
+        
+        LogUtility.log("Added die tracking attributes for reroll functionality");
+    } catch (error) {
+        LogUtility.logError("Failed to add die tracking attributes:", error);
+    }
 }
 
 /**
