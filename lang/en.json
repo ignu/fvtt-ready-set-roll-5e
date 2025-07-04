@@ -102,7 +102,9 @@
             "rerollSelected": "Reroll Selected",
             "noDiceFound": "No damage dice found to reroll.",
             "noDiceSelected": "Please select at least one die to reroll.",
-            "dialogError": "Error opening reroll dialog."
+            "dialogError": "Error opening reroll dialog.",
+            "success": "Successfully rerolled {count} dice.",
+            "error": "Failed to reroll damage dice."
         },
         "messages": {
             "error": {

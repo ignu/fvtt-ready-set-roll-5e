@@ -1113,25 +1113,118 @@ function _setupRerollDialogListeners(html) {
  * @private
  */
 async function _handleRerollConfirm(message, html) {
-    // For now, just log what would be rerolled
-    const selectedDice = [];
-    
-    html.find('input[name="reroll-die"]:checked').each(function() {
-        const $this = $(this);
-        selectedDice.push({
-            rollIndex: parseInt($this.data('roll-index')),
-            termIndex: parseInt($this.data('term-index')),
-            dieIndex: parseInt($this.data('die-index')),
-            currentResult: parseInt($this.data('die-result'))
+    try {
+        // Collect selected dice data
+        const selectedDice = [];
+        
+        html.find('input[name="reroll-die"]:checked').each(function() {
+            const $this = $(this);
+            selectedDice.push({
+                rollIndex: parseInt($this.data('roll-index')),
+                termIndex: parseInt($this.data('term-index')),
+                dieIndex: parseInt($this.data('die-index')),
+                currentResult: parseInt($this.data('die-result'))
+            });
         });
+        
+        if (selectedDice.length === 0) {
+            ui.notifications.warn(CoreUtility.localize("rsr5e.reroll.noDiceSelected"));
+            return;
+        }
+
+        LogUtility.log("Rerolling dice:", selectedDice);
+
+        // Group dice by roll and term for efficient processing
+        const rerollsByRoll = _groupRerollsByRoll(selectedDice);
+        const newRolls = [];
+
+        // Process each damage roll that has dice to reroll
+        for (const [rollIndex, terms] of Object.entries(rerollsByRoll)) {
+            const rollIdx = parseInt(rollIndex);
+            const originalRoll = message.rolls.filter(r => r instanceof CONFIG.Dice.DamageRoll)[rollIdx];
+            
+            if (!originalRoll) {
+                LogUtility.logError(`Could not find damage roll at index ${rollIdx}`);
+                continue;
+            }
+
+            // Create new rolls for each die that needs rerolling
+            for (const [termIndex, diceIndices] of Object.entries(terms)) {
+                const termIdx = parseInt(termIndex);
+                const originalTerm = originalRoll.terms.filter(t => t instanceof foundry.dice.terms.Die)[termIdx];
+                
+                if (!originalTerm) {
+                    LogUtility.logError(`Could not find die term at index ${termIdx} in roll ${rollIdx}`);
+                    continue;
+                }
+
+                // Create a new roll for just the dice being rerolled
+                const rerollCount = diceIndices.length;
+                const rerollFormula = `${rerollCount}d${originalTerm.faces}`;
+                const rerollRoll = new Roll(rerollFormula);
+                
+                await rerollRoll.evaluate();
+                newRolls.push(rerollRoll);
+
+                // Replace the selected dice results with new ones
+                diceIndices.forEach((dieIndex, i) => {
+                    if (i < rerollRoll.dice[0].results.length) {
+                        const newResult = rerollRoll.dice[0].results[i];
+                        originalTerm.results[dieIndex] = {
+                            result: newResult.result,
+                            active: true,
+                            rerolled: false // Mark as not rerolled since this is the new result
+                        };
+                    }
+                });
+            }
+
+            // Reset roll calculations after modifying results
+            RollUtility.resetRollGetters(originalRoll);
+        }
+
+        // Trigger Dice3D animation for the new rolls if available
+        if (newRolls.length > 0) {
+            await CoreUtility.tryRollDice3D(newRolls);
+        }
+
+        // Update the chat message with the modified rolls
+        ChatUtility.updateChatMessage(message, {
+            rolls: message.rolls
+        });
+
+        // Play roll sound if Dice3D is not enabled
+        if (!game.dice3d || !game.dice3d.isEnabled()) {
+            CoreUtility.playRollSound();
+        }
+
+        // Show success notification
+        ui.notifications.info(CoreUtility.localize("rsr5e.reroll.success", { count: selectedDice.length }));
+
+    } catch (error) {
+        LogUtility.logError("Failed to reroll damage dice:", error);
+        ui.notifications.error(CoreUtility.localize("rsr5e.reroll.error"));
+    }
+}
+
+/**
+ * Groups selected dice by roll index and term index for efficient processing.
+ * @param {Array} selectedDice Array of selected dice data.
+ * @returns {Object} Grouped data structure.
+ * @private
+ */
+function _groupRerollsByRoll(selectedDice) {
+    const grouped = {};
+    
+    selectedDice.forEach(die => {
+        if (!grouped[die.rollIndex]) {
+            grouped[die.rollIndex] = {};
+        }
+        if (!grouped[die.rollIndex][die.termIndex]) {
+            grouped[die.rollIndex][die.termIndex] = [];
+        }
+        grouped[die.rollIndex][die.termIndex].push(die.dieIndex);
     });
     
-    if (selectedDice.length === 0) {
-        ui.notifications.warn(CoreUtility.localize("rsr5e.reroll.noDiceSelected"));
-        return;
-    }
-    
-    // TODO: Implement actual reroll logic
-    LogUtility.log("Would reroll dice:", selectedDice);
-    ui.notifications.info(`Selected ${selectedDice.length} dice for reroll (not implemented yet)`);
+    return grouped;
 }
