@@ -82,13 +82,27 @@
                 "rollCrit": "Click to roll critical damage.",
                 "rollAdvantage": "Click to roll with advantage.",
                 "rollDisadvantage": "Click to roll with disadvantage.",
-                "repeat": "Click to repeat the quick roll."
+                "repeat": "Click to repeat the quick roll.",
+                "rerollDamage": "Click to reroll damage dice."
             },
             "prompts": {
                 "retroCrit": "Upgrade to Crit?",
                 "retroAdv": "Roll {target}?"
             },
             "hide": "???"
+        },
+        "reroll": {
+            "dialogTitle": "Reroll Damage Dice",
+            "selectDice": "Select dice to reroll:",
+            "selectDiceHint": "Choose individual dice to reroll, or use the quick select options below.",
+            "damage": "damage",
+            "selectedDice": "dice selected",
+            "selectOnes": "Select all 1s",
+            "selectLowHalf": "Select low half",
+            "rerollSelected": "Reroll Selected",
+            "noDiceFound": "No damage dice found to reroll.",
+            "noDiceSelected": "Please select at least one die to reroll.",
+            "dialogError": "Error opening reroll dialog."
         },
         "messages": {
             "error": {

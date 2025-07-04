@@ -1,0 +1,51 @@
+<form class="rsr-reroll-modal">
+    <div class="form-group">
+        <label>{{ localize "rsr5e.reroll.selectDice" }}</label>
+        <p class="notes">{{ localize "rsr5e.reroll.selectDiceHint" }}</p>
+    </div>
+    
+    <div class="dice-selection">
+        {{#each diceGroups}}
+        <div class="dice-group" data-roll-index="{{rollIndex}}" data-term-index="{{termIndex}}">
+            <h4 class="dice-group-title">
+                {{#if damageType}}
+                    {{rollCount}}{{faces}} {{damageType}} {{ localize "rsr5e.reroll.damage" }}
+                {{else}}
+                    {{rollCount}}{{faces}} {{ localize "rsr5e.reroll.damage" }}
+                {{/if}}
+            </h4>
+            
+            <div class="dice-results">
+                {{#each results}}
+                <label class="die-checkbox">
+                    <input type="checkbox" 
+                           name="reroll-die" 
+                           data-roll-index="{{../rollIndex}}" 
+                           data-term-index="{{../termIndex}}" 
+                           data-die-index="{{index}}"
+                           data-die-result="{{result}}">
+                    <span class="die-display">{{result}}</span>
+                </label>
+                {{/each}}
+            </div>
+        </div>
+        {{/each}}
+    </div>
+    
+    <div class="form-group">
+        <div class="reroll-options">
+            <label>
+                <input type="checkbox" name="reroll-ones" id="reroll-ones">
+                {{ localize "rsr5e.reroll.selectOnes" }}
+            </label>
+            <label>
+                <input type="checkbox" name="reroll-low" id="reroll-low">
+                {{ localize "rsr5e.reroll.selectLowHalf" }}
+            </label>
+        </div>
+    </div>
+    
+    <div class="selected-summary">
+        <span class="selected-count">0</span> {{ localize "rsr5e.reroll.selectedDice" }}
+    </div>
+</form>

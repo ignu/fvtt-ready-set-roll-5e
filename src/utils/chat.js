@@ -173,10 +173,16 @@ export class ChatUtility {
 function _onOverlayHover(message, html) {
     const hasPermission = game.user.isGM || message?.isAuthor;
     const isItem =  message.flags.dnd5e?.use !== undefined;
+    const hasDamageRolls = message.rolls.some(r => r instanceof CONFIG.Dice.DamageRoll);
+    const isCritical = ChatUtility.isMessageCritical(message);
 
     html.find('.rsr-overlay').show();
     html.find('.rsr-overlay-multiroll').toggle(hasPermission && !ChatUtility.isMessageMultiRoll(message));
-    html.find('.rsr-overlay-crit').toggle(hasPermission && isItem && !ChatUtility.isMessageCritical(message));
+    html.find('.rsr-overlay-crit').toggle(hasPermission && isItem && hasDamageRolls);
+    
+    // Show/hide individual buttons within the crit overlay
+    html.find('.rsr-overlay-crit div[data-action="rsr-retro"]').toggle(!isCritical);
+    html.find('.rsr-overlay-crit div[data-action="rsr-reroll"]').toggle(true); // Always show reroll if overlay is visible
 }
 
 /**
@@ -603,9 +609,14 @@ async function _injectOverlayRetroButtons(message, html) {
 
     html.find('.rsr-damage .dice-total').append($(overlayCrit));
 
-    // Handle clicking the multi-roll overlay buttons
+    // Handle clicking the crit and reroll overlay buttons
     html.find(".rsr-overlay-crit div").click(async event => {
-        await _processRetroCritButtonEvent(message, event);
+        const action = event.currentTarget.dataset.action;
+        if (action === "rsr-retro") {
+            await _processRetroCritButtonEvent(message, event);
+        } else if (action === "rsr-reroll") {
+            await _processRerollDamageButtonEvent(message, event);
+        }
     });
 }
 
@@ -915,4 +926,212 @@ async function _processRetroCritButtonEvent(message, event) {
             CoreUtility.playRollSound();
         }
     }
+}
+
+/**
+ * Processes and handles a reroll damage button click event.
+ * @param {ChatMessage} message The chat message for which an event is being processed.
+ * @param {Event} event The originating event of the button click.
+ * @private
+ */
+async function _processRerollDamageButtonEvent(message, event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const button = event.currentTarget;
+    const action = button.dataset.action;
+
+    if (action === "rsr-reroll") {
+        await _showRerollDamageDialog(message, event);
+    }
+}
+
+/**
+ * Shows the reroll damage selection dialog.
+ * @param {ChatMessage} message The chat message containing damage rolls.
+ * @param {Event} event The originating click event.
+ * @private
+ */
+async function _showRerollDamageDialog(message, event) {
+    try {
+        // Extract dice data from damage rolls
+        const diceGroups = _extractDiceDataFromMessage(message);
+        
+        if (diceGroups.length === 0) {
+            ui.notifications.warn(CoreUtility.localize("rsr5e.reroll.noDiceFound"));
+            return;
+        }
+
+        // Render the modal content
+        const content = await RenderUtility.render(TEMPLATE.REROLL_MODAL, { diceGroups });
+        
+        // Create dialog options
+        const dialogOptions = {
+            width: 400,
+            height: "auto",
+            top: event ? event.clientY - 100 : null,
+            left: event ? event.clientX - 200 : null,
+            classes: ["rsr-reroll-dialog"]
+        };
+
+        // Create the dialog
+        const dialog = new Dialog({
+            title: CoreUtility.localize("rsr5e.reroll.dialogTitle"),
+            content: content,
+            buttons: {
+                reroll: {
+                    icon: '<i class="fa-solid fa-arrows-rotate"></i>',
+                    label: CoreUtility.localize("rsr5e.reroll.rerollSelected"),
+                    callback: async (html) => {
+                        await _handleRerollConfirm(message, html);
+                    }
+                },
+                cancel: {
+                    icon: '<i class="fa-solid fa-xmark"></i>',
+                    label: CoreUtility.localize("Cancel"),
+                    callback: () => {} // Do nothing on cancel
+                }
+            },
+            default: "reroll",
+            render: (html) => {
+                _setupRerollDialogListeners(html);
+            }
+        }, dialogOptions);
+
+        dialog.render(true);
+        
+    } catch (error) {
+        LogUtility.logError("Failed to show reroll damage dialog:", error);
+        ui.notifications.error(CoreUtility.localize("rsr5e.reroll.dialogError"));
+    }
+}
+
+/**
+ * Extracts dice data from damage rolls for the reroll dialog.
+ * @param {ChatMessage} message The chat message containing damage rolls.
+ * @returns {Array} Array of dice group data for the dialog.
+ * @private
+ */
+function _extractDiceDataFromMessage(message) {
+    const diceGroups = [];
+    const damageRolls = message.rolls.filter(r => r instanceof CONFIG.Dice.DamageRoll);
+    
+    damageRolls.forEach((roll, rollIndex) => {
+        const dieTerms = roll.terms.filter(term => term instanceof foundry.dice.terms.Die);
+        
+        dieTerms.forEach((term, termIndex) => {
+            // Try to determine damage type from roll options or formula
+            const damageType = _getDamageTypeFromTerm(roll, termIndex);
+            
+            const results = term.results.map((result, index) => ({
+                index: index,
+                result: result.result,
+                active: result.active !== false
+            })).filter(r => r.active); // Only show active results
+            
+            if (results.length > 0) {
+                diceGroups.push({
+                    rollIndex: rollIndex,
+                    termIndex: termIndex,
+                    faces: term.faces,
+                    rollCount: term.number,
+                    damageType: damageType,
+                    results: results
+                });
+            }
+        });
+    });
+    
+    return diceGroups;
+}
+
+/**
+ * Attempts to determine damage type from roll term context.
+ * @param {DamageRoll} roll The damage roll.
+ * @param {number} termIndex The index of the term.
+ * @returns {string|null} The damage type if found.
+ * @private
+ */
+function _getDamageTypeFromTerm(roll, termIndex) {
+    // This is a simplified implementation - in practice you might need more sophisticated parsing
+    if (roll.options?.type) {
+        return roll.options.type;
+    }
+    
+    // Try to extract from roll formula or options
+    if (roll.terms && roll.terms[termIndex + 1] && roll.terms[termIndex + 1].term) {
+        return roll.terms[termIndex + 1].term;
+    }
+    
+    return null;
+}
+
+/**
+ * Sets up event listeners for the reroll dialog.
+ * @param {jQuery} html The dialog HTML element.
+ * @private
+ */
+function _setupRerollDialogListeners(html) {
+    // Update selected count when checkboxes change
+    html.find('input[name="reroll-die"]').on('change', function() {
+        const selectedCount = html.find('input[name="reroll-die"]:checked').length;
+        html.find('.selected-count').text(selectedCount);
+    });
+    
+    // Quick select options
+    html.find('#reroll-ones').on('change', function() {
+        const checked = this.checked;
+        html.find('input[name="reroll-die"]').each(function() {
+            const result = parseInt($(this).data('die-result'));
+            if (result === 1) {
+                $(this).prop('checked', checked);
+            }
+        });
+        // Trigger change to update count
+        html.find('input[name="reroll-die"]').first().trigger('change');
+    });
+    
+    html.find('#reroll-low').on('change', function() {
+        const checked = this.checked;
+        html.find('input[name="reroll-die"]').each(function() {
+            const result = parseInt($(this).data('die-result'));
+            const faces = parseInt($(this).closest('.dice-group').find('.dice-group-title').text().match(/\d+/)[0]);
+            const lowHalf = Math.floor(faces / 2);
+            if (result <= lowHalf) {
+                $(this).prop('checked', checked);
+            }
+        });
+        // Trigger change to update count
+        html.find('input[name="reroll-die"]').first().trigger('change');
+    });
+}
+
+/**
+ * Handles the reroll confirmation from the dialog.
+ * @param {ChatMessage} message The original chat message.
+ * @param {jQuery} html The dialog HTML element.
+ * @private
+ */
+async function _handleRerollConfirm(message, html) {
+    // For now, just log what would be rerolled
+    const selectedDice = [];
+    
+    html.find('input[name="reroll-die"]:checked').each(function() {
+        const $this = $(this);
+        selectedDice.push({
+            rollIndex: parseInt($this.data('roll-index')),
+            termIndex: parseInt($this.data('term-index')),
+            dieIndex: parseInt($this.data('die-index')),
+            currentResult: parseInt($this.data('die-result'))
+        });
+    });
+    
+    if (selectedDice.length === 0) {
+        ui.notifications.warn(CoreUtility.localize("rsr5e.reroll.noDiceSelected"));
+        return;
+    }
+    
+    // TODO: Implement actual reroll logic
+    LogUtility.log("Would reroll dice:", selectedDice);
+    ui.notifications.info(`Selected ${selectedDice.length} dice for reroll (not implemented yet)`);
 }

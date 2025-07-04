@@ -12,5 +12,6 @@ export const TEMPLATE = {
     OPTIONS: "rsr-options.html",
     BUTTON: "rsr-button.html",
     OVERLAY_MULTIROLL: "rsr-overlay-multiroll.html",
-    OVERLAY_CRIT: "rsr-overlay-crit.html"
+    OVERLAY_CRIT: "rsr-overlay-crit.html",
+    REROLL_MODAL: "rsr-reroll-modal.html"
 }
