@@ -789,9 +789,16 @@ function _addDieTrackingAttributes(rollHTML, rolls) {
                         dieResults.each((resultIndex, dieResult) => {
                             const $dieResult = $(dieResult);
                             if (resultIndex < term.results.length) {
+                                const result = term.results[resultIndex];
                                 $dieResult.attr('data-die-index', resultIndex);
-                                $dieResult.attr('data-die-result', term.results[resultIndex].result);
+                                $dieResult.attr('data-die-result', result.result);
                                 $dieResult.addClass('rsr-rerollable-die');
+                                
+                                // Mark rerolled dice for potential future use
+                                if (result.wasRerolled && result.oldResult !== undefined) {
+                                    $dieResult.addClass('rsr-rerolled-die');
+                                    $dieResult.attr('data-old-result', result.oldResult);
+                                }
                             }
                         });
                         
@@ -1166,14 +1173,19 @@ async function _handleRerollConfirm(message, html) {
                 await rerollRoll.evaluate();
                 newRolls.push(rerollRoll);
 
-                // Replace the selected dice results with new ones
+                // Store old results and replace with new ones
                 diceIndices.forEach((dieIndex, i) => {
                     if (i < rerollRoll.dice[0].results.length) {
+                        const oldResult = originalTerm.results[dieIndex];
                         const newResult = rerollRoll.dice[0].results[i];
+                        
+                        // Store the old result value and replace with new
                         originalTerm.results[dieIndex] = {
                             result: newResult.result,
                             active: true,
-                            rerolled: false // Mark as not rerolled since this is the new result
+                            rerolled: false,
+                            oldResult: oldResult.result, // Store the old value for display
+                            wasRerolled: true // Mark this as having been rerolled
                         };
                     }
                 });
@@ -1189,9 +1201,12 @@ async function _handleRerollConfirm(message, html) {
         }
 
         // Update the chat message with the modified rolls
-        ChatUtility.updateChatMessage(message, {
+        await ChatUtility.updateChatMessage(message, {
             rolls: message.rolls
         });
+
+        // Create audit log chat message
+        await _createRerollAuditLog(message, selectedDice, newRolls);
 
         // Play roll sound if Dice3D is not enabled
         if (!game.dice3d || !game.dice3d.isEnabled()) {
@@ -1227,4 +1242,101 @@ function _groupRerollsByRoll(selectedDice) {
     });
     
     return grouped;
+}
+
+/**
+ * Creates an audit log chat message showing the reroll details.
+ * @param {ChatMessage} originalMessage The original message that was rerolled.
+ * @param {Array} selectedDice The dice that were selected for reroll.
+ * @param {Array} newRolls The new rolls that were made.
+ * @private
+ */
+async function _createRerollAuditLog(originalMessage, selectedDice, newRolls) {
+    try {
+        // Group dice by their details for cleaner display
+        const rerollSummary = _buildRerollSummary(originalMessage, selectedDice, newRolls);
+        
+        // Create the audit log content
+        const content = `
+            <div class="rsr-reroll-audit">
+                <h3><i class="fa-solid fa-arrows-rotate"></i> Damage Dice Rerolled</h3>
+                <div class="rsr-audit-details">
+                    <table class="rsr-audit-table">
+                        <thead>
+                            <tr>
+                                <th>Die Type</th>
+                                <th>Old Result</th>
+                                <th>New Result</th>
+                                <th>Change</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rerollSummary.map(entry => `
+                                <tr class="${entry.change > 0 ? 'positive' : entry.change < 0 ? 'negative' : 'neutral'}">
+                                    <td>d${entry.faces}</td>
+                                    <td>${entry.oldResult}</td>
+                                    <td>${entry.newResult}</td>
+                                    <td>${entry.change > 0 ? '+' : ''}${entry.change}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    <div class="rsr-audit-totals">
+                        <strong>Total Change:</strong> ${rerollSummary.reduce((sum, entry) => sum + entry.change, 0) > 0 ? '+' : ''}${rerollSummary.reduce((sum, entry) => sum + entry.change, 0)}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Create the chat message
+        await ChatMessage.create({
+            user: game.user.id,
+            speaker: ChatMessage.getSpeaker(),
+            content: content,
+            type: CONST.CHAT_MESSAGE_TYPES.OTHER,
+            flags: {
+                [MODULE_SHORT]: {
+                    isRerollAudit: true,
+                    originalMessageId: originalMessage.id
+                }
+            }
+        });
+
+    } catch (error) {
+        LogUtility.logError("Failed to create reroll audit log:", error);
+    }
+}
+
+/**
+ * Builds a summary of reroll changes for the audit log.
+ * @param {ChatMessage} originalMessage The original message.
+ * @param {Array} selectedDice The selected dice data.
+ * @param {Array} newRolls The new rolls made.
+ * @returns {Array} Summary data for display.
+ * @private
+ */
+function _buildRerollSummary(originalMessage, selectedDice, newRolls) {
+    const summary = [];
+    const damageRolls = originalMessage.rolls.filter(r => r instanceof CONFIG.Dice.DamageRoll);
+    let newRollIndex = 0;
+    
+    selectedDice.forEach(die => {
+        const roll = damageRolls[die.rollIndex];
+        if (!roll) return;
+        
+        const term = roll.terms.filter(t => t instanceof foundry.dice.terms.Die)[die.termIndex];
+        if (!term) return;
+        
+        const result = term.results[die.dieIndex];
+        if (!result || !result.wasRerolled) return;
+        
+        summary.push({
+            faces: term.faces,
+            oldResult: result.oldResult,
+            newResult: result.result,
+            change: result.result - result.oldResult
+        });
+    });
+    
+    return summary;
 }

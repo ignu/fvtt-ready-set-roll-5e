@@ -203,6 +203,64 @@
 	font-size: 14px;
 }
 
+/* Reroll audit log styling */
+.rsr-reroll-audit {
+    border: 1px solid var(--color-border-light-2);
+    border-radius: 4px;
+    padding: 12px;
+    background: var(--color-bg-alt);
+}
+
+.rsr-reroll-audit h3 {
+    margin: 0 0 8px 0;
+    color: var(--color-text-dark-primary);
+    font-size: 14px;
+}
+
+.rsr-audit-details {
+    font-size: 12px;
+}
+
+.rsr-audit-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0;
+    font-size: 11px;
+}
+
+.rsr-audit-table th,
+.rsr-audit-table td {
+    padding: 4px 8px;
+    border: 1px solid var(--color-border-light-1);
+    text-align: center;
+}
+
+.rsr-audit-table th {
+    background: var(--color-bg-option);
+    font-weight: bold;
+}
+
+.rsr-audit-table tr.positive {
+    background: rgba(0, 128, 0, 0.1);
+}
+
+.rsr-audit-table tr.negative {
+    background: rgba(128, 0, 0, 0.1);
+}
+
+.rsr-audit-table tr.neutral {
+    background: rgba(128, 128, 128, 0.05);
+}
+
+.rsr-audit-totals {
+    margin-top: 8px;
+    padding: 6px;
+    background: var(--color-bg);
+    border-radius: 3px;
+    text-align: center;
+    font-weight: bold;
+}
+
 .dnd5e.item form .rsr-item {
 	padding: 8px 8px 0;
 	overflow-y: auto;
