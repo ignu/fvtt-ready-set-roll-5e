@@ -178,10 +178,12 @@ function _onOverlayHover(message, html) {
 
     html.find('.rsr-overlay').show();
     html.find('.rsr-overlay-multiroll').toggle(hasPermission && !ChatUtility.isMessageMultiRoll(message));
-    html.find('.rsr-overlay-crit').toggle(hasPermission && isItem && hasDamageRolls);
+    
+    // Show the crit overlay if there are damage rolls and user has permission
+    html.find('.rsr-overlay-crit').toggle(hasPermission && hasDamageRolls);
     
     // Show/hide individual buttons within the crit overlay
-    html.find('.rsr-overlay-crit div[data-action="rsr-retro"]').toggle(!isCritical);
+    html.find('.rsr-overlay-crit div[data-action="rsr-retro"]').toggle(isItem && !isCritical);
     html.find('.rsr-overlay-crit div[data-action="rsr-reroll"]').toggle(true); // Always show reroll if overlay is visible
 }
 
