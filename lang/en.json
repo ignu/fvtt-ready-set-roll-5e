@@ -1,5 +1,5 @@
 {
-    "rsr5e": {        
+    "rsr5e": {
         "settings": {
             "enableSkillQuickRoll.name": "Enable Quick Roll for Skills",
             "enableSkillQuickRoll.hint": "When clicking on a skill check, automatically roll to chat instead of using the normal roll dialog. This functionality can be bypassed by holding the 'Skip Dialog' key modifier when clicking.",
@@ -99,8 +99,8 @@
             "selectedDice": "dice selected",
             "selectOnes": "Select all 1s",
             "keepOption": "When rerolling:",
-            "keepNew": "Keep new dice",
-            "keepBetter": "Keep better dice",
+            "keepNew": "Keep New",
+            "keepBetter": "Keep Best",
             "rerollSelected": "Reroll Selected",
             "noDiceFound": "No damage dice found to reroll.",
             "noDiceSelected": "Please select at least one die to reroll.",

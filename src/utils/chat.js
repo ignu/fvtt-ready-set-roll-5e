@@ -1,23 +1,22 @@
-import { MODULE_SHORT } from "../module/const.js";
-import { MODULE_MIDI } from "../module/integration.js";
-import { TEMPLATE } from "../module/templates.js";
-import { ActivityUtility } from "./activity.js";
-import { CoreUtility } from "./core.js";
-import { DialogUtility } from "./dialog.js";
-import { LogUtility } from "./log.js";
-import { RenderUtility } from "./render.js";
-import { ROLL_STATE, ROLL_TYPE, RollUtility } from "./roll.js";
-import { SETTING_NAMES, SettingsUtility } from "./settings.js";
-import { RerollUtility } from "./reroll.js";
+import { MODULE_SHORT } from '../module/const.js';
+import { MODULE_MIDI } from '../module/integration.js';
+import { TEMPLATE } from '../module/templates.js';
+import { ActivityUtility } from './activity.js';
+import { CoreUtility } from './core.js';
+import { DialogUtility } from './dialog.js';
+import { LogUtility } from './log.js';
+import { RenderUtility } from './render.js';
+import { ROLL_STATE, ROLL_TYPE, RollUtility } from './roll.js';
+import { SETTING_NAMES, SettingsUtility } from './settings.js';
 
 /**
  * Enumerable of identifiers for different message types that can be made.
  * @enum {String}
  */
 export const MESSAGE_TYPE = {
-    ROLL: "roll",
-    USAGE: "usage",
-}
+    ROLL: 'roll',
+    USAGE: 'usage',
+};
 
 /**
  * Utility class to handle binding chat cards for use by the module.
@@ -40,7 +39,7 @@ export class ChatUtility {
 
         if (SettingsUtility.getSettingValue(SETTING_NAMES.QUICK_VANILLA_ENABLED) && !message.flags[MODULE_SHORT]) {
             _processVanillaMessage(message);
-            await $(html).addClass("rsr-hide");
+            await $(html).addClass('rsr-hide');
         }
 
         if (!message.flags[MODULE_SHORT] || !message.flags[MODULE_SHORT].quickRoll) {
@@ -51,39 +50,37 @@ export class ChatUtility {
 
         // Hide the message if we haven't yet finished processing RSR content
         if (!message.flags[MODULE_SHORT].processed) {
-            await $(html).addClass("rsr-hide");
+            await $(html).addClass('rsr-hide');
 
-            if (type == ROLL_TYPE.ACTIVITY && message.isAuthor)
-            {
+            if (type == ROLL_TYPE.ACTIVITY && message.isAuthor) {
                 if (CoreUtility.hasModule(MODULE_MIDI)) {
                     const activityType = ChatUtility.getActivityType(message);
                     if (activityType == ROLL_TYPE.ATTACK || (activityType == ROLL_TYPE.ABILITY_SAVE && message.flags[MODULE_SHORT].renderDamage)) {
                         message.flags[MODULE_SHORT].processed = true;
                     } else {
                         ActivityUtility.runActivityActions(message);
-                    }  
+                    }
                 } else {
                     ActivityUtility.runActivityActions(message);
-                }                
+                }
             }
 
             return;
         }
 
-        if (game.dice3d && game.dice3d.isEnabled() && message._dice3danimating)
-        {
-            await $(html).addClass("rsr-hide");
+        if (game.dice3d && game.dice3d.isEnabled() && message._dice3danimating) {
+            await $(html).addClass('rsr-hide');
             await game.dice3d.waitFor3DAnimationByMessageID(message.id);
         }
 
         const content = $(html).find('.message-content');
 
         if (content.length === 0) {
-            await $(html).removeClass("rsr-hide");
+            await $(html).removeClass('rsr-hide');
             ui.chat.scrollBottom();
             return;
         }
-        
+
         // This will force dual rolls on non-item messages, since this is the only place we can catch this before it is displayed.
         if (message.isAuthor && SettingsUtility.getSettingValue(SETTING_NAMES.ALWAYS_ROLL_MULTIROLL) && !ChatUtility.isMessageMultiRoll(message)) {
             await _enforceDualRolls(message);
@@ -91,7 +88,7 @@ export class ChatUtility {
             if (message.flags[MODULE_SHORT].dual) {
                 ChatUtility.updateChatMessage(message, {
                     flags: message.flags,
-                    rolls: message.rolls
+                    rolls: message.rolls,
                 });
 
                 return;
@@ -105,7 +102,7 @@ export class ChatUtility {
             let hoverSetupComplete = false;
             content.hover(async () => {
                 if (!hoverSetupComplete) {
-                    LogUtility.log("Injecting overlay hover buttons")
+                    LogUtility.log('Injecting overlay hover buttons');
                     hoverSetupComplete = true;
                     await _injectOverlayButtons(message, content);
                     _onOverlayHover(message, content);
@@ -114,9 +111,9 @@ export class ChatUtility {
         }
 
         if (message.flags[MODULE_SHORT].processed) {
-            await $(html).removeClass("rsr-hide");
+            await $(html).removeClass('rsr-hide');
         }
-        
+
         ui.chat.scrollBottom();
     }
 
@@ -132,11 +129,11 @@ export class ChatUtility {
     }
 
     static getMessageType(message) {
-        return message.flags.dnd5e?.messageType === MESSAGE_TYPE.USAGE 
-            ? ROLL_TYPE.ACTIVITY 
-            : message.flags.dnd5e?.messageType === MESSAGE_TYPE.ROLL 
-                ? (message.flags.dnd5e?.roll?.type ??  null)
-                : null;
+        return message.flags.dnd5e?.messageType === MESSAGE_TYPE.USAGE
+            ? ROLL_TYPE.ACTIVITY
+            : message.flags.dnd5e?.messageType === MESSAGE_TYPE.ROLL
+            ? message.flags.dnd5e?.roll?.type ?? null
+            : null;
     }
 
     static getActivityType(message) {
@@ -156,8 +153,13 @@ export class ChatUtility {
     }
 
     static isMessageMultiRoll(message) {
-        return (message.flags[MODULE_SHORT].advantage || message.flags[MODULE_SHORT].disadvantage || message.flags[MODULE_SHORT].dual
-            || (message.rolls[0] instanceof CONFIG.Dice.D20Roll && message.rolls[0].options.advantageMode !== CONFIG.Dice.D20Roll.ADV_MODE.NORMAL)) ?? false;
+        return (
+            (message.flags[MODULE_SHORT].advantage ||
+                message.flags[MODULE_SHORT].disadvantage ||
+                message.flags[MODULE_SHORT].dual ||
+                (message.rolls[0] instanceof CONFIG.Dice.D20Roll && message.rolls[0].options.advantageMode !== CONFIG.Dice.D20Roll.ADV_MODE.NORMAL)) ??
+            false
+        );
     }
 
     static isMessageCritical(message) {
@@ -173,13 +175,13 @@ export class ChatUtility {
  */
 function _onOverlayHover(message, html) {
     const hasPermission = game.user.isGM || message?.isAuthor;
-    const isItem =  message.flags.dnd5e?.use !== undefined;
+    const isItem = message.flags.dnd5e?.use !== undefined;
     const hasDamageRolls = message.rolls.some(r => r instanceof CONFIG.Dice.DamageRoll);
     const isCritical = ChatUtility.isMessageCritical(message);
 
     html.find('.rsr-overlay').show();
     html.find('.rsr-overlay-multiroll').toggle(hasPermission && !ChatUtility.isMessageMultiRoll(message));
-    
+
     // Show the crit overlay if there are damage rolls and user has permission
     html.find('.rsr-overlay-crit').toggle(hasPermission && hasDamageRolls);
 
@@ -194,7 +196,7 @@ function _onOverlayHover(message, html) {
  * @private
  */
 function _onOverlayHoverEnd(html) {
-    html.find(".rsr-overlay").attr("style", "display: none;");
+    html.find('.rsr-overlay').attr('style', 'display: none;');
 }
 
 /**
@@ -415,6 +417,7 @@ async function _injectContent(message, type, html) {
             break;
     }
 
+    //_setupRerollDice(html);
     _setupCardListeners(message, html);
 }
 
@@ -967,12 +970,357 @@ async function _processRerollDamageButtonEvent(message, event) {
     const action = button.dataset.action;
 
     if (action === 'rsr-reroll') {
-        await RerollUtility.showRerollDialog(message, event);
+        await _showRerollDamageDialog(message, event);
     }
-        }        }
+}
+
+/**
+ * Shows the reroll damage selection dialog.
+ * @param {ChatMessage} message The chat message containing damage rolls.
+ * @param {Event} event The originating click event.
+ * @private
+ */
+async function _showRerollDamageDialog(message, event) {
+    try {
+        // Extract dice data from damage rolls
+        const diceGroups = _extractDiceDataFromMessage(message);
+
+        if (diceGroups.length === 0) {
+            ui.notifications.warn(CoreUtility.localize('rsr5e.reroll.noDiceFound'));
+            return;
+        }
+
+        // Render the modal content
+        const content = await RenderUtility.render(TEMPLATE.REROLL_MODAL, {
+            diceGroups,
+        });
+
+        // Create dialog options
+        const dialogOptions = {
+            width: 400,
+            height: 'auto',
+            top: event ? event.clientY - 100 : null,
+            left: event ? event.clientX - 200 : null,
+            classes: ['rsr-reroll-dialog', 'rsr-reroll-modal'],
+        };
+
+        // Create the dialog
+        const dialog = new Dialog(
+            {
+                title: CoreUtility.localize('rsr5e.reroll.dialogTitle'),
+                content: content,
+                buttons: {
+                    reroll: {
+                        icon: '<i class="fa-solid fa-arrows-rotate"></i>',
+                        label: CoreUtility.localize('rsr5e.reroll.rerollSelected'),
+                        callback: async html => {
+                            await _handleRerollConfirm(message, html);
+                        },
+                    },
+                    cancel: {
+                        icon: '<i class="fa-solid fa-xmark"></i>',
+                        label: CoreUtility.localize('Cancel'),
+                        callback: () => {}, // Do nothing on cancel
+                    },
+                },
+                default: 'reroll',
+                render: html => {
+                    _setupRerollDialogListeners(html);
+                },
+            },
+            dialogOptions
+        );
+
+        dialog.render(true);
+    } catch (error) {
+        LogUtility.logError('Failed to show reroll damage dialog:', error);
+        ui.notifications.error(CoreUtility.localize('rsr5e.reroll.dialogError'));
+    }
+}
+
+/**
+ * Extracts dice data from damage rolls for the reroll dialog.
+ * @param {ChatMessage} message The chat message containing damage rolls.
+ * @returns {Array} Array of dice group data for the dialog.
+ * @private
+ */
+function _extractDiceDataFromMessage(message) {
+    const diceGroups = [];
+    const damageRolls = message.rolls.filter(r => r instanceof CONFIG.Dice.DamageRoll);
+
+    console.log(`RSR Debug: Found ${damageRolls.length} damage rolls in message`, damageRolls);
+
+    // Track processed dice to avoid duplicates
+    const processedDice = new Set();
+
+    damageRolls.forEach((roll, rollIndex) => {
+        const dieTerms = roll.terms.filter(term => term instanceof foundry.dice.terms.Die);
+        console.log(`RSR Debug: Roll ${rollIndex} has ${dieTerms.length} die terms`, dieTerms);
+
+        dieTerms.forEach((term, termIndex) => {
+            // Create unique identifier for this die term
+            const termKey = `${rollIndex}-${termIndex}-${term.faces}-${term.number}`;
+
+            if (processedDice.has(termKey)) {
+                console.log(`RSR Debug: Skipping duplicate die term: ${termKey}`);
+                return;
+            }
+            processedDice.add(termKey);
+
+            // Try to determine damage type from roll options or formula
+            const damageType = _getDamageTypeFromTerm(roll, termIndex);
+
+            const results = term.results
+                .map((result, index) => {
+                    const classes = [];
+                    if (result.result === term.faces) classes.push('max');
+                    if (result.result === 1) classes.push('min');
+
+                    return {
+                        index: index,
+                        result: result.result,
+                        active: result.active !== false,
+                        classes: classes.join(' '),
+                    };
+                })
+                .filter(r => r.active); // Only show active results
+
+            // Sort results from lowest to highest
+            results.sort((a, b) => a.result - b.result);
+
+            if (results.length > 0) {
+                console.log(`RSR Debug: Adding dice group for d${term.faces} with ${results.length} results`);
+                diceGroups.push({
+                    rollIndex: rollIndex,
+                    termIndex: termIndex,
+                    faces: term.faces,
+                    rollCount: term.number,
+                    damageType: damageType,
+                    results: results,
+                });
+            }
+        });
+    });
+
+    // Sort groups by die type (d4, d6, d8, etc.) then by damage type
+    diceGroups.sort((a, b) => {
+        if (a.faces !== b.faces) {
+            return a.faces - b.faces;
+        }
+        const typeA = a.damageType || 'zzz'; // Put untyped at the end
+        const typeB = b.damageType || 'zzz';
+        return typeA.localeCompare(typeB);
+    });
+
+    console.log(`RSR Debug: Final dice groups:`, diceGroups);
+    return diceGroups;
+}
+
+/**
+ * Attempts to determine damage type from roll term context.
+ * @param {DamageRoll} roll The damage roll.
+ * @param {number} termIndex The index of the term.
+ * @returns {string|null} The damage type if found.
+ * @private
+ */
+function _getDamageTypeFromTerm(roll, termIndex) {
+    // This is a simplified implementation - in practice you might need more sophisticated parsing
+    if (roll.options?.type) {
+        return roll.options.type;
+    }
+
+    // Try to extract from roll formula or options
+    if (roll.terms && roll.terms[termIndex + 1] && roll.terms[termIndex + 1].term) {
+        return roll.terms[termIndex + 1].term;
+    }
+
+    return null;
+}
+
+/**
+ * Sets up event listeners for the reroll dialog.
+ * @param {jQuery} html The dialog HTML element.
+ * @private
+ */
+function _setupRerollDialogListeners(html) {
+    // Update selected count when checkboxes change
+    html.find('input[name="reroll-die"]').on('change', function () {
+        const selectedCount = html.find('input[name="reroll-die"]:checked').length;
+        html.find('.selected-count').text(selectedCount);
+    });
+
+    // Quick select options
+    html.find('#reroll-ones').on('change', function () {
+        const checked = this.checked;
+        html.find('input[name="reroll-die"]').each(function () {
+            const result = parseInt($(this).data('die-result'));
+            if (result === 1) {
+                $(this).prop('checked', checked);
+            }
+        });
+        // Trigger change to update count
+        html.find('input[name="reroll-die"]').first().trigger('change');
+    });
+
+    html.find('#reroll-low').on('change', function () {
+        const checked = this.checked;
+        html.find('input[name="reroll-die"]').each(function () {
+            const result = parseInt($(this).data('die-result'));
+            const faces = parseInt($(this).closest('.dice-group').find('.dice-group-title').text().match(/\d+/)[0]);
+            const lowHalf = Math.floor(faces / 2);
+            if (result <= lowHalf) {
+                $(this).prop('checked', checked);
+            }
+        });
+        // Trigger change to update count
+        html.find('input[name="reroll-die"]').first().trigger('change');
+    });
+}
+
+/**
+ * Handles the reroll confirmation from the dialog.
+ * @param {ChatMessage} message The original chat message.
+ * @param {jQuery} html The dialog HTML element.
+ * @private
+ */
+async function _handleRerollConfirm(message, html) {
+    try {
+        // Collect selected dice data
+        const selectedDice = [];
+
+        html.find('input[name="reroll-die"]:checked').each(function () {
+            const $this = $(this);
+            selectedDice.push({
+                rollIndex: parseInt($this.data('roll-index')),
+                termIndex: parseInt($this.data('term-index')),
+                dieIndex: parseInt($this.data('die-index')),
+                currentResult: parseInt($this.data('die-result')),
+            });
+        });
+
+        if (selectedDice.length === 0) {
+            ui.notifications.warn(CoreUtility.localize('rsr5e.reroll.noDiceSelected'));
+            return;
+        }
+
+        // Get the keep option (default to "new")
+        const keepOption = html.find('input[name="keep-option"]:checked').val() || 'new';
+
+        LogUtility.log('Rerolling dice:', selectedDice);
+
+        // Group dice by roll and term for efficient processing
+        const rerollsByRoll = _groupRerollsByRoll(selectedDice);
+        const newRolls = [];
+
+        // Process each damage roll that has dice to reroll
+        for (const [rollIndex, terms] of Object.entries(rerollsByRoll)) {
+            const rollIdx = parseInt(rollIndex);
+            const originalRoll = message.rolls.filter(r => r instanceof CONFIG.Dice.DamageRoll)[rollIdx];
+
+            if (!originalRoll) {
+                LogUtility.logError(`Could not find damage roll at index ${rollIdx}`);
+                continue;
+            }
+
+            // Create new rolls for each die that needs rerolling
+            for (const [termIndex, diceIndices] of Object.entries(terms)) {
+                const termIdx = parseInt(termIndex);
+                const originalTerm = originalRoll.terms.filter(t => t instanceof foundry.dice.terms.Die)[termIdx];
+
+                if (!originalTerm) {
+                    LogUtility.logError(`Could not find die term at index ${termIdx} in roll ${rollIdx}`);
+                    continue;
+                }
+
+                // Create a new roll for just the dice being rerolled
+                const rerollCount = diceIndices.length;
+                const rerollFormula = `${rerollCount}d${originalTerm.faces}`;
+                const rerollRoll = new Roll(rerollFormula);
+
+                await rerollRoll.evaluate();
+                newRolls.push(rerollRoll);
+
+                // Store old results and replace with new ones based on keep option
+                diceIndices.forEach((dieIndex, i) => {
+                    if (i < rerollRoll.dice[0].results.length) {
+                        const oldResult = originalTerm.results[dieIndex];
+                        const newResult = rerollRoll.dice[0].results[i];
+
+                        let finalResult = newResult.result;
+
+                        // Apply keep option logic
+                        if (keepOption === 'better') {
+                            finalResult = Math.max(oldResult.result, newResult.result);
+                        }
+                        // If keepOption === "new", we use newResult.result (already set above)
+
+                        // Store the old result value and replace with final result
+                        originalTerm.results[dieIndex] = {
+                            result: finalResult,
+                            active: true,
+                            rerolled: false,
+                            oldResult: oldResult.result, // Store the old value for display
+                            newResult: newResult.result, // Store the new roll result for audit
+                            wasRerolled: true, // Mark this as having been rerolled
+                            keepOption: keepOption, // Store which option was used
+                        };
+                    }
+                });
+            }
+
+            // Reset roll calculations after modifying results
+            RollUtility.resetRollGetters(originalRoll);
+        }
+
+        // Trigger Dice3D animation for the new rolls if available
+        if (newRolls.length > 0) {
+            await CoreUtility.tryRollDice3D(newRolls);
+        }
+
+        // Update the chat message with the modified rolls
+        await ChatUtility.updateChatMessage(message, {
+            rolls: message.rolls,
+        });
+
+        // Create audit log chat message
+        await _createRerollAuditLog(message, selectedDice, newRolls, keepOption);
+
+        // Play roll sound if Dice3D is not enabled
+        if (!game.dice3d || !game.dice3d.isEnabled()) {
+            CoreUtility.playRollSound();
+        }
+
+        // Show success notification
+        ui.notifications.info(
+            CoreUtility.localize('rsr5e.reroll.success', {
+                count: selectedDice.length,
+            })
+        );
+    } catch (error) {
+        LogUtility.logError('Failed to reroll damage dice:', error);
+        ui.notifications.error(CoreUtility.localize('rsr5e.reroll.error'));
+    }
+}
+
+/**
+ * Groups selected dice by roll index and term index for efficient processing.
+ * @param {Array} selectedDice Array of selected dice data.
+ * @returns {Object} Grouped data structure.
+ * @private
+ */
+function _groupRerollsByRoll(selectedDice) {
+    const grouped = {};
+
+    selectedDice.forEach(die => {
+        if (!grouped[die.rollIndex]) {
+            grouped[die.rollIndex] = {};
+        }
+        if (!grouped[die.rollIndex][die.termIndex]) {
+            grouped[die.rollIndex][die.termIndex] = [];
+        }
         grouped[die.rollIndex][die.termIndex].push(die.dieIndex);
     });
-    
+
     return grouped;
 }
 
@@ -981,40 +1329,57 @@ async function _processRerollDamageButtonEvent(message, event) {
  * @param {ChatMessage} originalMessage The original message that was rerolled.
  * @param {Array} selectedDice The dice that were selected for reroll.
  * @param {Array} newRolls The new rolls that were made.
+ * @param {string} keepOption The keep option that was used ('better' or 'new').
  * @private
  */
-async function _createRerollAuditLog(originalMessage, selectedDice, newRolls) {
+async function _createRerollAuditLog(originalMessage, selectedDice, newRolls, keepOption) {
     try {
         // Group dice by their details for cleaner display
         const rerollSummary = _buildRerollSummary(originalMessage, selectedDice, newRolls);
-        
+
+        // Determine keep option display text
+        const keepOptionText = keepOption === 'better' ? 'Keep Better' : 'Keep New';
+        const keepOptionIcon = keepOption === 'better' ? 'fa-arrow-up' : 'fa-arrow-right';
+
         // Create the audit log content
         const content = `
             <div class="rsr-reroll-audit">
                 <h3><i class="fa-solid fa-arrows-rotate"></i> Damage Dice Rerolled</h3>
+                <div class="rsr-audit-keep-option">
+                    <strong><i class="fa-solid ${keepOptionIcon}"></i> ${keepOptionText}</strong>
+                </div>
                 <div class="rsr-audit-details">
                     <table class="rsr-audit-table">
                         <thead>
                             <tr>
-                                <th>Die Type</th>
-                                <th>Old Result</th>
-                                <th>New Result</th>
+                                <th>Die</th>
+                                <th>Old</th>
+                                <th>New</th>
+                                <th>Final</th>
                                 <th>Change</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${rerollSummary.map(entry => `
+                            ${rerollSummary
+                                .map(
+                                    entry => `
                                 <tr class="${entry.change > 0 ? 'positive' : entry.change < 0 ? 'negative' : 'neutral'}">
                                     <td>d${entry.faces}</td>
                                     <td>${entry.oldResult}</td>
-                                    <td>${entry.newResult}</td>
+                                    <td>${entry.newRoll}</td>
+                                    <td class="${entry.keptBetter ? 'kept-better' : 'kept-new'}">${entry.finalResult}</td>
                                     <td>${entry.change > 0 ? '+' : ''}${entry.change}</td>
                                 </tr>
-                            `).join('')}
+                            `
+                                )
+                                .join('')}
                         </tbody>
                     </table>
                     <div class="rsr-audit-totals">
-                        <strong>Total Change:</strong> ${rerollSummary.reduce((sum, entry) => sum + entry.change, 0) > 0 ? '+' : ''}${rerollSummary.reduce((sum, entry) => sum + entry.change, 0)}
+                        <strong>Total Change:</strong> ${rerollSummary.reduce((sum, entry) => sum + entry.change, 0) > 0 ? '+' : ''}${rerollSummary.reduce(
+            (sum, entry) => sum + entry.change,
+            0
+        )}
                     </div>
                 </div>
             </div>
@@ -1029,13 +1394,12 @@ async function _createRerollAuditLog(originalMessage, selectedDice, newRolls) {
             flags: {
                 [MODULE_SHORT]: {
                     isRerollAudit: true,
-                    originalMessageId: originalMessage.id
-                }
-            }
+                    originalMessageId: originalMessage.id,
+                },
+            },
         });
-
     } catch (error) {
-        LogUtility.logError("Failed to create reroll audit log:", error);
+        LogUtility.logError('Failed to create reroll audit log:', error);
     }
 }
 
@@ -1051,180 +1415,30 @@ function _buildRerollSummary(originalMessage, selectedDice, newRolls) {
     const summary = [];
     const damageRolls = originalMessage.rolls.filter(r => r instanceof CONFIG.Dice.DamageRoll);
     let newRollIndex = 0;
-    
+
     selectedDice.forEach(die => {
         const roll = damageRolls[die.rollIndex];
         if (!roll) return;
-        
+
         const term = roll.terms.filter(t => t instanceof foundry.dice.terms.Die)[die.termIndex];
         if (!term) return;
-        
+
         const result = term.results[die.dieIndex];
         if (!result || !result.wasRerolled) return;
-        
+
+        // Determine if the better result was kept
+        const keptBetter = result.keepOption === 'better' && result.result === Math.max(result.oldResult, result.newResult);
+
         summary.push({
             faces: term.faces,
             oldResult: result.oldResult,
-            newResult: result.result,
-            change: result.result - result.oldResult
-        });
-        });
-        });
-
-        // Create audit log chat message
-        await _createRerollAuditLog(message, selectedDice, newRolls);
-
-        // Play roll sound if Dice3D is not enabled
-        if (!game.dice3d || !game.dice3d.isEnabled()) {
-            CoreUtility.playRollSound();
-        }
-
-        // Show success notification
-        ui.notifications.info(CoreUtility.localize("rsr5e.reroll.success", { count: selectedDice.length }));
-
-    } catch (error) {
-        LogUtility.logError("Failed to reroll damage dice:", error);
-        ui.notifications.error(CoreUtility.localize("rsr5e.reroll.error"));
-    }
-}
-
-/**
- * Groups selected dice by roll index and term index for efficient processing.
- * @param {Array} selectedDice Array of selected dice data.
- * @returns {Object} Grouped data structure.
- * @private
- */
-function _groupRerollsByRoll(selectedDice) {
-    const grouped = {};
-    });
-
-        // Create audit log chat message
-        await _createRerollAuditLog(message, selectedDice, newRolls);
-
-        // Play roll sound if Dice3D is not enabled
-        if (!game.dice3d || !game.dice3d.isEnabled()) {
-            CoreUtility.playRollSound();
-        }
-
-        // Show success notification
-        ui.notifications.info(CoreUtility.localize("rsr5e.reroll.success", { count: selectedDice.length }));
-
-    } catch (error) {
-        LogUtility.logError("Failed to reroll damage dice:", error);
-        ui.notifications.error(CoreUtility.localize("rsr5e.reroll.error"));
-    }
-}
-
-/**
- * Groups selected dice by roll index and term index for efficient processing.
- * @param {Array} selectedDice Array of selected dice data.
- * @returns {Object} Grouped data structure.
- * @private
- */
-function _groupRerollsByRoll(selectedDice) {
-    const grouped = {};
-    
-    return summary;
-}
-}        grouped[die.rollIndex][die.termIndex].push(die.dieIndex);
-    });
-    
-    return grouped;
-}
-
-/**
- * Creates an audit log chat message showing the reroll details.
- * @param {ChatMessage} originalMessage The original message that was rerolled.
- * @param {Array} selectedDice The dice that were selected for reroll.
- * @param {Array} newRolls The new rolls that were made.
- * @private
- */
-async function _createRerollAuditLog(originalMessage, selectedDice, newRolls) {
-    try {
-        // Group dice by their details for cleaner display
-        const rerollSummary = _buildRerollSummary(originalMessage, selectedDice, newRolls);
-        
-        // Create the audit log content
-        const content = `
-            <div class="rsr-reroll-audit">
-                <h3><i class="fa-solid fa-arrows-rotate"></i> Damage Dice Rerolled</h3>
-                <div class="rsr-audit-details">
-                    <table class="rsr-audit-table">
-                        <thead>
-                            <tr>
-                                <th>Die Type</th>
-                                <th>Old Result</th>
-                                <th>New Result</th>
-                                <th>Change</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${rerollSummary.map(entry => `
-                                <tr class="${entry.change > 0 ? 'positive' : entry.change < 0 ? 'negative' : 'neutral'}">
-                                    <td>d${entry.faces}</td>
-                                    <td>${entry.oldResult}</td>
-                                    <td>${entry.newResult}</td>
-                                    <td>${entry.change > 0 ? '+' : ''}${entry.change}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                    <div class="rsr-audit-totals">
-                        <strong>Total Change:</strong> ${rerollSummary.reduce((sum, entry) => sum + entry.change, 0) > 0 ? '+' : ''}${rerollSummary.reduce((sum, entry) => sum + entry.change, 0)}
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // Create the chat message
-        await ChatMessage.create({
-            user: game.user.id,
-            speaker: ChatMessage.getSpeaker(),
-            content: content,
-            type: CONST.CHAT_MESSAGE_TYPES.OTHER,
-            flags: {
-                [MODULE_SHORT]: {
-                    isRerollAudit: true,
-                    originalMessageId: originalMessage.id
-                }
-            }
-        });
-
-    } catch (error) {
-        LogUtility.logError("Failed to create reroll audit log:", error);
-    }
-}
-
-/**
- * Builds a summary of reroll changes for the audit log.
- * @param {ChatMessage} originalMessage The original message.
- * @param {Array} selectedDice The selected dice data.
- * @param {Array} newRolls The new rolls made.
- * @returns {Array} Summary data for display.
- * @private
- */
-function _buildRerollSummary(originalMessage, selectedDice, newRolls) {
-    const summary = [];
-    const damageRolls = originalMessage.rolls.filter(r => r instanceof CONFIG.Dice.DamageRoll);
-    let newRollIndex = 0;
-    
-    selectedDice.forEach(die => {
-        const roll = damageRolls[die.rollIndex];
-        if (!roll) return;
-        
-        const term = roll.terms.filter(t => t instanceof foundry.dice.terms.Die)[die.termIndex];
-        if (!term) return;
-        
-        const result = term.results[die.dieIndex];
-        if (!result || !result.wasRerolled) return;
-        
-        summary.push({
-            faces: term.faces,
-            oldResult: result.oldResult,
-            newResult: result.result,
-            change: result.result - result.oldResult
+            newRoll: result.newResult,
+            finalResult: result.result,
+            change: result.result - result.oldResult,
+            keptBetter: keptBetter,
+            keepOption: result.keepOption,
         });
     });
-    
+
     return summary;
 }
