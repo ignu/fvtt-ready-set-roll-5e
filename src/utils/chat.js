@@ -8,6 +8,7 @@ import { LogUtility } from "./log.js";
 import { RenderUtility } from "./render.js";
 import { ROLL_STATE, ROLL_TYPE, RollUtility } from "./roll.js";
 import { SETTING_NAMES, SettingsUtility } from "./settings.js";
+import { RerollUtility } from "./reroll.js";
 
 /**
  * Enumerable of identifiers for different message types that can be made.
@@ -181,7 +182,7 @@ function _onOverlayHover(message, html) {
     
     // Show the crit overlay if there are damage rolls and user has permission
     html.find('.rsr-overlay-crit').toggle(hasPermission && hasDamageRolls);
-    
+
     // Show/hide individual buttons within the crit overlay
     html.find('.rsr-overlay-crit div[data-action="rsr-retro"]').toggle(isItem && !isCritical);
     html.find('.rsr-overlay-crit div[data-action="rsr-reroll"]').toggle(true); // Always show reroll if overlay is visible
@@ -208,7 +209,7 @@ function _onTooltipHover(message, html) {
 
     if (controlled || targeted) {
         html.find('.rsr-damage-buttons').show();
-        html.find('.rsr-damage-buttons').removeAttr("style");
+        html.find('.rsr-damage-buttons').removeAttr('style');
     }
 }
 
@@ -218,7 +219,7 @@ function _onTooltipHover(message, html) {
  * @private
  */
 function _onTooltipHoverEnd(html) {
-    html.find(".rsr-damage-buttons").attr("style", "display: none;height: 0px");
+    html.find('.rsr-damage-buttons').attr('style', 'display: none;height: 0px');
 }
 
 function _onDamageHover(message, html) {
@@ -231,7 +232,7 @@ function _onDamageHover(message, html) {
 }
 
 function _onDamageHoverEnd(html) {
-    html.find(".rsr-damage-buttons-xl").attr("style", "display: none;");
+    html.find('.rsr-damage-buttons-xl').attr('style', 'display: none;');
 }
 
 /**
@@ -242,11 +243,13 @@ function _onDamageHoverEnd(html) {
  */
 function _setupCardListeners(message, html) {
     if (SettingsUtility.getSettingValue(SETTING_NAMES.MANUAL_DAMAGE_MODE) > 0) {
-        html.find('.card-buttons').find(`[data-action='rsr-${ROLL_TYPE.DAMAGE}']`).click(async event => {
-            await _processDamageButtonEvent(message, event);
-        });
+        html.find('.card-buttons')
+            .find(`[data-action='rsr-${ROLL_TYPE.DAMAGE}']`)
+            .click(async event => {
+                await _processDamageButtonEvent(message, event);
+            });
     }
-    
+
     if (SettingsUtility.getSettingValue(SETTING_NAMES.DAMAGE_BUTTONS_ENABLED)) {
         html.find('.rsr-damage-buttons button').click(async event => {
             await _processApplyButtonEvent(message, event);
@@ -283,27 +286,27 @@ async function _enforceDualRolls(message) {
 }
 
 async function _injectContent(message, type, html) {
-    LogUtility.log("Injecting content into chat message");
+    LogUtility.log('Injecting content into chat message');
     const parent = message.getOriginatingMessage();
     message.flags[MODULE_SHORT].displayChallenge = parent?.shouldDisplayChallenge ?? message.shouldDisplayChallenge;
-    message.flags[MODULE_SHORT].displayAttackResult = game.user.isGM || (game.settings.get("dnd5e", "attackRollVisibility") !== "none");
+    message.flags[MODULE_SHORT].displayAttackResult = game.user.isGM || game.settings.get('dnd5e', 'attackRollVisibility') !== 'none';
 
-    switch (type) {     
+    switch (type) {
         case ROLL_TYPE.DAMAGE:
             // Handle damage enrichers
             if (!message.flags.dnd5e?.item?.id) {
                 const enricher = html.find('.dice-roll');
-                
+
                 html.parent().find('.flavor-text').text('');
                 html.prepend('<div class="dnd5e2 chat-card"></div>');
-                html.find('.chat-card').append(enricher);                        
+                html.find('.chat-card').append(enricher);
 
                 message.flags[MODULE_SHORT].renderDamage = true;
                 message.flags[MODULE_SHORT].isCritical = message.rolls[0]?.isCritical;
 
                 await _injectDamageRoll(message, enricher);
 
-                if (SettingsUtility.getSettingValue(SETTING_NAMES.DAMAGE_BUTTONS_ENABLED)) {                
+                if (SettingsUtility.getSettingValue(SETTING_NAMES.DAMAGE_BUTTONS_ENABLED)) {
                     await _injectApplyDamageButtons(message, html);
                 }
                 enricher.remove();
@@ -321,20 +324,20 @@ async function _injectContent(message, type, html) {
                 if (type === ROLL_TYPE.DAMAGE) {
                     parent.flags[MODULE_SHORT].renderDamage = true;
                     parent.flags[MODULE_SHORT].isCritical = message.rolls[0]?.isCritical;
-                    parent.flags[MODULE_SHORT].isHealing = message.flags.dnd5e.activity.type === "heal";
+                    parent.flags[MODULE_SHORT].isHealing = message.flags.dnd5e.activity.type === 'heal';
                 }
-                
+
                 // if (game.dice3d && game.dice3d.isEnabled()) {
                 //     await CoreUtility.waitUntil(() => !message._dice3danimating);
                 // }
 
-                parent.flags[MODULE_SHORT].quickRoll = true;                
+                parent.flags[MODULE_SHORT].quickRoll = true;
                 parent.rolls.push(...message.rolls);
 
                 ChatUtility.updateChatMessage(parent, {
                     flags: parent.flags,
                     rolls: parent.rolls,
-                    flavor: "vanilla",
+                    flavor: 'vanilla',
                 });
 
                 message.flags[MODULE_SHORT].processed = false;
@@ -355,13 +358,15 @@ async function _injectContent(message, type, html) {
             roll.options.displayChallenge = message.flags[MODULE_SHORT].displayChallenge;
             roll.options.forceSuccess = message.flags.dnd5e?.roll?.forceSuccess;
 
-            const render = await RenderUtility.render(TEMPLATE.MULTIROLL, { roll, key: type })
+            const render = await RenderUtility.render(TEMPLATE.MULTIROLL, {
+                roll,
+                key: type,
+            });
             html.find('.dice-total').replaceWith(render);
             html.find('.dice-tooltip').prepend(html.find('.dice-formula'));
 
-            if (message.flags[MODULE_SHORT].isConcentration)
-            {
-                await _injectBreakConcentrationButton(message, html)
+            if (message.flags[MODULE_SHORT].isConcentration) {
+                await _injectBreakConcentrationButton(message, html);
             }
             break;
         case ROLL_TYPE.ACTIVITY:
@@ -370,7 +375,7 @@ async function _injectContent(message, type, html) {
             }
 
             const actions = html.find('.card-buttons');
-            
+
             // Remove any redundant dice roll elements that were added forcefully by dnd5e system
             html.find('.dice-roll').remove();
 
@@ -381,7 +386,7 @@ async function _injectContent(message, type, html) {
                 html.find('.rsr-section-attack').append(html.find('.supplement'));
                 html.find('.supplement').removeClass('supplement').addClass('rsr-supplement');
             }
-            
+
             if (message.flags[MODULE_SHORT].manualDamage || message.flags[MODULE_SHORT].renderDamage) {
                 actions.find(`[data-action=rollDamage]`).remove();
                 actions.find(`[data-action=rollHealing]`).remove();
@@ -410,7 +415,6 @@ async function _injectContent(message, type, html) {
             break;
     }
 
-    //_setupRerollDice(html);
     _setupCardListeners(message, html);
 }
 
@@ -419,33 +423,37 @@ async function _injectAttackRoll(message, html) {
     const roll = message.rolls.find(r => r instanceof CONFIG.Dice.D20Roll);
 
     if (!roll) return;
-    
+
     RollUtility.resetRollGetters(roll);
 
     roll.options.displayChallenge = message.flags[MODULE_SHORT].displayAttackResult;
     roll.options.hideFinalAttack = SettingsUtility.getSettingValue(SETTING_NAMES.HIDE_FINAL_RESULT_ENABLED) && !game.actors.get(message.speaker.actor)?.isOwner;
 
-    const render = await RenderUtility.render(TEMPLATE.MULTIROLL, { roll, key: ROLL_TYPE.ATTACK });
+    const render = await RenderUtility.render(TEMPLATE.MULTIROLL, {
+        roll,
+        key: ROLL_TYPE.ATTACK,
+    });
     const chatData = await roll.toMessage({}, { create: false });
-    const rollHTML = $(await new ChatMessage5e(chatData).renderHTML()).find('.dice-roll');    
+    const rollHTML = $(await new ChatMessage5e(chatData).renderHTML()).find('.dice-roll');
     rollHTML.find('.dice-total').replaceWith(render);
     rollHTML.find('.dice-tooltip').prepend(rollHTML.find('.dice-formula'));
 
     if (roll.options.hideFinalAttack) {
         rollHTML.find('.dice-tooltip').find('.tooltip-part.constant').remove();
-        rollHTML.find('.dice-formula').text("1d20 + " + CoreUtility.localize(`${MODULE_SHORT}.chat.hide`));
-    }    
+        rollHTML.find('.dice-formula').text('1d20 + ' + CoreUtility.localize(`${MODULE_SHORT}.chat.hide`));
+    }
 
     const ammo = message.getAssociatedActor().items.get(message.flags[MODULE_SHORT].ammunition)?.name;
 
-    const sectionHTML = $(await RenderUtility.render(TEMPLATE.SECTION,
-    {
-        section: `rsr-section-${ROLL_TYPE.ATTACK}`,
-        title: CoreUtility.localize("DND5E.Attack"),
-        icon: "<dnd5e-icon src=\"systems/dnd5e/icons/svg/trait-weapon-proficiencies.svg\"></dnd5e-icon>",
-        subtitle: ammo ? `${CoreUtility.localize("DND5E.CONSUMABLE.Type.Ammunition.Label")} - ${ammo}` : undefined
-    }));
-    
+    const sectionHTML = $(
+        await RenderUtility.render(TEMPLATE.SECTION, {
+            section: `rsr-section-${ROLL_TYPE.ATTACK}`,
+            title: CoreUtility.localize('DND5E.Attack'),
+            icon: '<dnd5e-icon src="systems/dnd5e/icons/svg/trait-weapon-proficiencies.svg"></dnd5e-icon>',
+            subtitle: ammo ? `${CoreUtility.localize('DND5E.CONSUMABLE.Type.Ammunition.Label')} - ${ammo}` : undefined,
+        })
+    );
+
     $(sectionHTML).append(rollHTML);
     sectionHTML.insertBefore(html);
 }
@@ -460,16 +468,16 @@ async function _injectFormulaRoll(message, html) {
     const rollHTML = $(await new ChatMessage5e(chatData).renderHTML()).find('.dice-roll');
     rollHTML.find('.dice-tooltip').prepend(rollHTML.find('.dice-formula'));
 
-    const sectionHTML = $(await RenderUtility.render(TEMPLATE.SECTION,
-    {
-        section: `rsr-section-${ROLL_TYPE.FORMULA}`,
-        title: message.flags[MODULE_SHORT].formulaName ?? CoreUtility.localize("DND5E.OtherFormula"),
-        icon: "<i class=\"fas fa-dice\"></i>"
-    }));
-    
+    const sectionHTML = $(
+        await RenderUtility.render(TEMPLATE.SECTION, {
+            section: `rsr-section-${ROLL_TYPE.FORMULA}`,
+            title: message.flags[MODULE_SHORT].formulaName ?? CoreUtility.localize('DND5E.OtherFormula'),
+            icon: '<i class="fas fa-dice"></i>',
+        })
+    );
+
     $(sectionHTML).append(rollHTML);
     sectionHTML.insertBefore(html);
-
 }
 
 async function _injectDamageRoll(message, html) {
@@ -482,26 +490,26 @@ async function _injectDamageRoll(message, html) {
     const rollHTML = $(await new ChatMessage5e(chatData).renderHTML()).find('.dice-roll');
     rollHTML.find('.dice-tooltip').prepend(rollHTML.find('.dice-formula'));
     rollHTML.find('.dice-result').addClass('rsr-damage');
-    
+
     // Add die tracking data attributes for reroll functionality
     _addDieTrackingAttributes(rollHTML, rolls);
 
     const header = message.flags[MODULE_SHORT].isHealing
-        ? {            
-            section: `rsr-section-${ROLL_TYPE.DAMAGE}`,
-            title: CoreUtility.localize("DND5E.Healing"),
-            icon: "<dnd5e-icon src=\"systems/dnd5e/icons/svg/damage/healing.svg\"></dnd5e-icon>"
-        } 
+        ? {
+              section: `rsr-section-${ROLL_TYPE.DAMAGE}`,
+              title: CoreUtility.localize('DND5E.Healing'),
+              icon: '<dnd5e-icon src="systems/dnd5e/icons/svg/damage/healing.svg"></dnd5e-icon>',
+          }
         : {
-            section: `rsr-section-${ROLL_TYPE.DAMAGE}`,
-            title: `${CoreUtility.localize("DND5E.Damage")} ${message.flags[MODULE_SHORT].versatile ? "(" + CoreUtility.localize("DND5E.Versatile") + ")": ""}`,
-            icon: "<i class=\"fas fa-burst\"></i>",
-            subtitle: message.flags[MODULE_SHORT].isCritical ? `${CoreUtility.localize("DND5E.CriticalHit")}!` : undefined,
-            critical: message.flags[MODULE_SHORT].isCritical
-        }
+              section: `rsr-section-${ROLL_TYPE.DAMAGE}`,
+              title: `${CoreUtility.localize('DND5E.Damage')} ${message.flags[MODULE_SHORT].versatile ? '(' + CoreUtility.localize('DND5E.Versatile') + ')' : ''}`,
+              icon: '<i class="fas fa-burst"></i>',
+              subtitle: message.flags[MODULE_SHORT].isCritical ? `${CoreUtility.localize('DND5E.CriticalHit')}!` : undefined,
+              critical: message.flags[MODULE_SHORT].isCritical,
+          };
 
     const sectionHTML = $(await RenderUtility.render(TEMPLATE.SECTION, header));
-    
+
     $(sectionHTML).append(rollHTML);
     sectionHTML.insertBefore(html);
 }
@@ -509,18 +517,17 @@ async function _injectDamageRoll(message, html) {
 async function _injectDamageButton(message, html) {
     const button = message.flags[MODULE_SHORT].isHealing
         ? {
-            title: CoreUtility.localize("DND5E.Healing"),
-            icon: "<dnd5e-icon src=\"systems/dnd5e/icons/svg/damage/healing.svg\"></dnd5e-icon>"
-        } 
+              title: CoreUtility.localize('DND5E.Healing'),
+              icon: '<dnd5e-icon src="systems/dnd5e/icons/svg/damage/healing.svg"></dnd5e-icon>',
+          }
         : {
-            title: CoreUtility.localize("DND5E.Damage"),
-            icon: "<i class=\"fas fa-burst\"></i>"
-        }
+              title: CoreUtility.localize('DND5E.Damage'),
+              icon: '<i class="fas fa-burst"></i>',
+          };
 
-    const render = await RenderUtility.render(TEMPLATE.BUTTON, 
-    { 
+    const render = await RenderUtility.render(TEMPLATE.BUTTON, {
         action: ROLL_TYPE.DAMAGE,
-        ...button
+        ...button,
     });
 
     html.prepend($(render));
@@ -528,14 +535,13 @@ async function _injectDamageButton(message, html) {
 
 async function _injectBreakConcentrationButton(message, html) {
     const button = {
-        title: CoreUtility.localize("DND5E.ConcentrationBreak"),
-        icon: "<i class=\"fas fa-xmark\"></i>"
-    }
+        title: CoreUtility.localize('DND5E.ConcentrationBreak'),
+        icon: '<i class="fas fa-xmark"></i>',
+    };
 
-    const render = await RenderUtility.render(TEMPLATE.BUTTON, 
-    { 
+    const render = await RenderUtility.render(TEMPLATE.BUTTON, {
         action: ROLL_TYPE.CONCENTRATION,
-        ...button
+        ...button,
     });
 
     html.append($(render).addClass('rsr-concentration-buttons'));
@@ -565,10 +571,10 @@ async function _injectApplyDamageButtons(message, html) {
 
     if (!SettingsUtility.getSettingValue(SETTING_NAMES.ALWAYS_SHOW_BUTTONS)) {
         // Enable Hover Events (to show/hide the elements).
-        tooltip.each((i, el) => {        
-            $(el).find('.rsr-damage-buttons').attr("style", "display: none;height: 0px");
+        tooltip.each((i, el) => {
+            $(el).find('.rsr-damage-buttons').attr('style', 'display: none;height: 0px');
             $(el).hover(_onTooltipHover.bind(this, message, $(el)), _onTooltipHoverEnd.bind(this, $(el)));
-        })
+        });
 
         _onDamageHoverEnd(total);
         total.hover(_onDamageHover.bind(this, message, total), _onDamageHoverEnd.bind(this, total));
@@ -583,13 +589,12 @@ async function _injectApplyDamageButtons(message, html) {
  */
 async function _injectOverlayButtons(message, html) {
     await _injectOverlayRetroButtons(message, html);
-    await _injectOverlayHeaderButtons(message, html);    
-    
+    await _injectOverlayHeaderButtons(message, html);
+
     // Enable Hover Events (to show/hide the elements).
     _onOverlayHoverEnd(html);
     html.hover(_onOverlayHover.bind(this, message, html), _onOverlayHoverEnd.bind(this, html));
 }
-
 
 /**
  * Adds overlay buttons to a chat card for retroactively making a roll into a multi roll or a crit.
@@ -603,34 +608,32 @@ async function _injectOverlayRetroButtons(message, html) {
     html.find('.rsr-multiroll .dice-total').append($(overlayMultiRoll));
 
     // Handle clicking the multi-roll overlay buttons
-    html.find(".rsr-overlay-multiroll div").click(async event => {
+    html.find('.rsr-overlay-multiroll div').click(async event => {
         await _processRetroAdvButtonEvent(message, event);
     });
-    
+
     const overlayCrit = await RenderUtility.render(TEMPLATE.OVERLAY_CRIT, {});
 
     html.find('.rsr-damage .dice-total').append($(overlayCrit));
 
     // Handle clicking the crit and reroll overlay buttons
-    html.find(".rsr-overlay-crit div").click(async event => {
+    html.find('.rsr-overlay-crit div').click(async event => {
         const action = event.currentTarget.dataset.action;
-        if (action === "rsr-retro") {
+        if (action === 'rsr-retro') {
             await _processRetroCritButtonEvent(message, event);
-        } else if (action === "rsr-reroll") {
+        } else if (action === 'rsr-reroll') {
             await _processRerollDamageButtonEvent(message, event);
         }
     });
 }
 
- /**
+/**
  * Adds overlay buttons to a chat card header for quick-repeating a roll.
  * @param {ChatMessage} message The chat message for which content is being injected.
  * @param {JQuery} html The object to add overlay buttons to.
  * @private
  */
- async function _injectOverlayHeaderButtons(message, html) {
-
- }
+async function _injectOverlayHeaderButtons(message, html) {}
 
 /**
  * Processes and handles a manual damage button click event.
@@ -642,8 +645,8 @@ async function _processDamageButtonEvent(message, event) {
     event.preventDefault();
     event.stopPropagation();
 
-    message.flags[MODULE_SHORT].manualDamage = false
-    message.flags[MODULE_SHORT].renderDamage = true;  
+    message.flags[MODULE_SHORT].manualDamage = false;
+    message.flags[MODULE_SHORT].renderDamage = true;
 
     await ActivityUtility.runActivityAction(message, ROLL_TYPE.DAMAGE);
 }
@@ -669,13 +672,13 @@ async function _processBreakConcentrationButtonEvent(message, event) {
 async function _processApplyButtonEvent(message, event) {
     event.preventDefault();
     event.stopPropagation();
-    
+
     const button = event.currentTarget;
     const action = button.dataset.action;
     const multiplier = button.dataset.multiplier;
     const dice = $(button).closest('.tooltip-part').find('.dice');
 
-    if (action !== "rsr-apply-damage" && action !== "rsr-apply-temp") {
+    if (action !== 'rsr-apply-damage' && action !== 'rsr-apply-temp') {
         return;
     }
 
@@ -685,13 +688,15 @@ async function _processApplyButtonEvent(message, event) {
         return;
     }
 
-    const isTempHP = action === "rsr-apply-temp";
+    const isTempHP = action === 'rsr-apply-temp';
     const damage = _getApplyDamage(message, dice, multiplier);
 
-    await Promise.all(Array.from(targets).map(async t => {
-        const target = t.actor;        
-        return isTempHP ? await target.applyTempHP(damage.value) : await target.applyDamage([ damage ], { multiplier });
-    }));
+    await Promise.all(
+        Array.from(targets).map(async t => {
+            const target = t.actor;
+            return isTempHP ? await target.applyTempHP(damage.value) : await target.applyDamage([damage], { multiplier });
+        })
+    );
 
     setTimeout(() => {
         if (canvas.hud.token._displayState && canvas.hud.token._displayState !== 0) {
@@ -708,7 +713,7 @@ async function _processApplyTotalButtonEvent(message, event) {
     const action = button.dataset.action;
     const multiplier = Number(button.dataset.multiplier);
 
-    if (action !== "rsr-apply-damage" && action !== "rsr-apply-temp") {
+    if (action !== 'rsr-apply-damage' && action !== 'rsr-apply-temp') {
         return;
     }
 
@@ -717,22 +722,26 @@ async function _processApplyTotalButtonEvent(message, event) {
     if (targets.size === 0) {
         return;
     }
-    
-    const isTempHP = action === "rsr-apply-temp";
+
+    const isTempHP = action === 'rsr-apply-temp';
     const damages = [];
 
     const children = $(button).closest('.dice-roll').find('.rsr-damage .dice-tooltip .tooltip-part .dice');
 
     children.each((i, el) => {
         damages.push(_getApplyDamage(message, $(el), multiplier));
-    })
+    });
 
-    await Promise.all(Array.from(targets).map(async t => {
-        const target = t.actor;        
-        return isTempHP 
-            ? await target.applyTempHP(damages.reduce((accumulator, currentValue) => accumulator + currentValue.value, 0)) 
-            : await target.applyDamage(damages, { multiplier: Math.abs(multiplier) });
-    }));
+    await Promise.all(
+        Array.from(targets).map(async t => {
+            const target = t.actor;
+            return isTempHP
+                ? await target.applyTempHP(damages.reduce((accumulator, currentValue) => accumulator + currentValue.value, 0))
+                : await target.applyDamage(damages, {
+                      multiplier: Math.abs(multiplier),
+                  });
+        })
+    );
 
     setTimeout(() => {
         if (canvas.hud.token._displayState && canvas.hud.token._displayState !== 0) {
@@ -742,12 +751,16 @@ async function _processApplyTotalButtonEvent(message, event) {
 }
 
 function _getApplyDamage(message, dice, multiplier) {
-    const total = dice.find('.total')
+    const total = dice.find('.total');
     const value = parseInt(total.find('.value').text());
     const type = total.find('.label').text().toLowerCase();
 
     const properties = new Set(message.rolls.find(r => r instanceof CONFIG.Dice.DamageRoll)?.options?.properties ?? []);
-    return { value: value, type: multiplier < 0 ? 'healing' : type, properties: properties };
+    return {
+        value: value,
+        type: multiplier < 0 ? 'healing' : type,
+        properties: properties,
+    };
 }
 
 /**
@@ -760,32 +773,32 @@ function _addDieTrackingAttributes(rollHTML, rolls) {
     try {
         // Find all dice elements in the tooltip
         const tooltipParts = rollHTML.find('.dice-tooltip .tooltip-part');
-        
+
         let rollIndex = 0;
-        
+
         tooltipParts.each((partIndex, part) => {
             const $part = $(part);
             const diceElements = $part.find('.dice');
-            
+
             if (diceElements.length > 0 && rollIndex < rolls.length) {
                 const roll = rolls[rollIndex];
                 let termIndex = 0;
-                
+
                 // Find die terms in the roll
                 const dieTerms = roll.terms.filter(term => term instanceof foundry.dice.terms.Die);
-                
+
                 diceElements.each((diceIndex, dice) => {
                     const $dice = $(dice);
-                    
+
                     if (termIndex < dieTerms.length) {
                         const term = dieTerms[termIndex];
-                        
+
                         // Add tracking attributes to the dice container
                         $dice.attr('data-roll-index', rollIndex);
                         $dice.attr('data-term-index', termIndex);
                         $dice.attr('data-die-faces', term.faces);
                         $dice.addClass('rsr-rerollable-dice');
-                        
+
                         // Add attributes to individual die results
                         const dieResults = $dice.find('.die');
                         dieResults.each((resultIndex, dieResult) => {
@@ -795,7 +808,7 @@ function _addDieTrackingAttributes(rollHTML, rolls) {
                                 $dieResult.attr('data-die-index', resultIndex);
                                 $dieResult.attr('data-die-result', result.result);
                                 $dieResult.addClass('rsr-rerollable-die');
-                                
+
                                 // Mark rerolled dice for potential future use
                                 if (result.wasRerolled && result.oldResult !== undefined) {
                                     $dieResult.addClass('rsr-rerolled-die');
@@ -803,18 +816,18 @@ function _addDieTrackingAttributes(rollHTML, rolls) {
                                 }
                             }
                         });
-                        
+
                         termIndex++;
                     }
                 });
-                
+
                 rollIndex++;
             }
         });
-        
-        LogUtility.log("Added die tracking attributes for reroll functionality");
+
+        LogUtility.log('Added die tracking attributes for reroll functionality');
     } catch (error) {
-        LogUtility.logError("Failed to add die tracking attributes:", error);
+        LogUtility.logError('Failed to add die tracking attributes:', error);
     }
 }
 
@@ -833,20 +846,25 @@ async function _processRetroAdvButtonEvent(message, event) {
     const state = button.dataset.state;
     const key = $(button).closest('.rsr-multiroll')[0].dataset.key;
 
-    if (action === "rsr-retro") {
-        if (SettingsUtility.getSettingValue(SETTING_NAMES.CONFIRM_RETRO_ADV)) {        
+    if (action === 'rsr-retro') {
+        if (SettingsUtility.getSettingValue(SETTING_NAMES.CONFIRM_RETRO_ADV)) {
             const dialogOptions = {
                 width: 100,
                 top: event ? event.clientY - 50 : null,
-                left: window.innerWidth - 510
-            }
-    
-            const target = state === ROLL_STATE.ADV ? CoreUtility.localize("DND5E.Advantage") : CoreUtility.localize("DND5E.Disadvantage");
-            const confirmed = await DialogUtility.getConfirmDialog(CoreUtility.localize(`${MODULE_SHORT}.chat.prompts.retroAdv`, { target }), dialogOptions);
-    
+                left: window.innerWidth - 510,
+            };
+
+            const target = state === ROLL_STATE.ADV ? CoreUtility.localize('DND5E.Advantage') : CoreUtility.localize('DND5E.Disadvantage');
+            const confirmed = await DialogUtility.getConfirmDialog(
+                CoreUtility.localize(`${MODULE_SHORT}.chat.prompts.retroAdv`, {
+                    target,
+                }),
+                dialogOptions
+            );
+
             if (!confirmed) return;
         }
-        
+
         message.flags[MODULE_SHORT].advantage = state === ROLL_STATE.ADV;
         message.flags[MODULE_SHORT].disadvantage = state === ROLL_STATE.DIS;
 
@@ -854,15 +872,13 @@ async function _processRetroAdvButtonEvent(message, event) {
         await RollUtility.upgradeRoll(roll, state);
 
         if (key !== ROLL_TYPE.ATTACK && key !== ROLL_TYPE.TOOL_CHECK) {
-            message.flavor += message.rolls[0].hasAdvantage 
-                ? ` (${CoreUtility.localize("DND5E.Advantage")})` 
-                : ` (${CoreUtility.localize("DND5E.Disadvantage")})`;
+            message.flavor += message.rolls[0].hasAdvantage ? ` (${CoreUtility.localize('DND5E.Advantage')})` : ` (${CoreUtility.localize('DND5E.Disadvantage')})`;
         }
 
-        ChatUtility.updateChatMessage(message, { 
+        ChatUtility.updateChatMessage(message, {
             flags: message.flags,
             rolls: message.rolls,
-            flavor: message.flavor
+            flavor: message.flavor,
         });
 
         if (!game.dice3d || !game.dice3d.isEnabled()) {
@@ -884,19 +900,19 @@ async function _processRetroCritButtonEvent(message, event) {
     const button = event.currentTarget;
     const action = button.dataset.action;
 
-    if (action === "rsr-retro") {
-        if (SettingsUtility.getSettingValue(SETTING_NAMES.CONFIRM_RETRO_CRIT)) {        
+    if (action === 'rsr-retro') {
+        if (SettingsUtility.getSettingValue(SETTING_NAMES.CONFIRM_RETRO_CRIT)) {
             const dialogOptions = {
                 width: 100,
                 top: event ? event.clientY - 50 : null,
-                left: window.innerWidth - 510
-            }
-    
+                left: window.innerWidth - 510,
+            };
+
             const confirmed = await DialogUtility.getConfirmDialog(CoreUtility.localize(`${MODULE_SHORT}.chat.prompts.retroCrit`), dialogOptions);
-    
+
             if (!confirmed) return;
         }
-        
+
         message.flags[MODULE_SHORT].isCritical = true;
 
         const original = message.rolls;
@@ -910,7 +926,7 @@ async function _processRetroCritButtonEvent(message, event) {
 
         for (let i = 0; i < rolls.length; i++) {
             const baseRoll = rolls[i];
-            const critRoll = crits[i]
+            const critRoll = crits[i];
 
             for (const [j, term] of baseRoll.terms.entries()) {
                 if (!(term instanceof foundry.dice.terms.Die)) {
@@ -928,7 +944,7 @@ async function _processRetroCritButtonEvent(message, event) {
 
         ChatUtility.updateChatMessage(message, {
             flags: message.flags,
-            rolls: message.rolls
+            rolls: message.rolls,
         });
 
         if (!game.dice3d || !game.dice3d.isEnabled()) {
@@ -950,261 +966,109 @@ async function _processRerollDamageButtonEvent(message, event) {
     const button = event.currentTarget;
     const action = button.dataset.action;
 
-    if (action === "rsr-reroll") {
-        await _showRerollDamageDialog(message, event);
+    if (action === 'rsr-reroll') {
+        await RerollUtility.showRerollDialog(message, event);
     }
+        }        }
+        grouped[die.rollIndex][die.termIndex].push(die.dieIndex);
+    });
+    
+    return grouped;
 }
 
 /**
- * Shows the reroll damage selection dialog.
- * @param {ChatMessage} message The chat message containing damage rolls.
- * @param {Event} event The originating click event.
+ * Creates an audit log chat message showing the reroll details.
+ * @param {ChatMessage} originalMessage The original message that was rerolled.
+ * @param {Array} selectedDice The dice that were selected for reroll.
+ * @param {Array} newRolls The new rolls that were made.
  * @private
  */
-async function _showRerollDamageDialog(message, event) {
+async function _createRerollAuditLog(originalMessage, selectedDice, newRolls) {
     try {
-        // Extract dice data from damage rolls
-        const diceGroups = _extractDiceDataFromMessage(message);
+        // Group dice by their details for cleaner display
+        const rerollSummary = _buildRerollSummary(originalMessage, selectedDice, newRolls);
         
-        if (diceGroups.length === 0) {
-            ui.notifications.warn(CoreUtility.localize("rsr5e.reroll.noDiceFound"));
-            return;
-        }
+        // Create the audit log content
+        const content = `
+            <div class="rsr-reroll-audit">
+                <h3><i class="fa-solid fa-arrows-rotate"></i> Damage Dice Rerolled</h3>
+                <div class="rsr-audit-details">
+                    <table class="rsr-audit-table">
+                        <thead>
+                            <tr>
+                                <th>Die Type</th>
+                                <th>Old Result</th>
+                                <th>New Result</th>
+                                <th>Change</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rerollSummary.map(entry => `
+                                <tr class="${entry.change > 0 ? 'positive' : entry.change < 0 ? 'negative' : 'neutral'}">
+                                    <td>d${entry.faces}</td>
+                                    <td>${entry.oldResult}</td>
+                                    <td>${entry.newResult}</td>
+                                    <td>${entry.change > 0 ? '+' : ''}${entry.change}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    <div class="rsr-audit-totals">
+                        <strong>Total Change:</strong> ${rerollSummary.reduce((sum, entry) => sum + entry.change, 0) > 0 ? '+' : ''}${rerollSummary.reduce((sum, entry) => sum + entry.change, 0)}
+                    </div>
+                </div>
+            </div>
+        `;
 
-        // Render the modal content
-        const content = await RenderUtility.render(TEMPLATE.REROLL_MODAL, { diceGroups });
-        
-        // Create dialog options
-        const dialogOptions = {
-            width: 400,
-            height: "auto",
-            top: event ? event.clientY - 100 : null,
-            left: event ? event.clientX - 200 : null,
-            classes: ["rsr-reroll-dialog"]
-        };
-
-        // Create the dialog
-        const dialog = new Dialog({
-            title: CoreUtility.localize("rsr5e.reroll.dialogTitle"),
+        // Create the chat message
+        await ChatMessage.create({
+            user: game.user.id,
+            speaker: ChatMessage.getSpeaker(),
             content: content,
-            buttons: {
-                reroll: {
-                    icon: '<i class="fa-solid fa-arrows-rotate"></i>',
-                    label: CoreUtility.localize("rsr5e.reroll.rerollSelected"),
-                    callback: async (html) => {
-                        await _handleRerollConfirm(message, html);
-                    }
-                },
-                cancel: {
-                    icon: '<i class="fa-solid fa-xmark"></i>',
-                    label: CoreUtility.localize("Cancel"),
-                    callback: () => {} // Do nothing on cancel
+            type: CONST.CHAT_MESSAGE_TYPES.OTHER,
+            flags: {
+                [MODULE_SHORT]: {
+                    isRerollAudit: true,
+                    originalMessageId: originalMessage.id
                 }
-            },
-            default: "reroll",
-            render: (html) => {
-                _setupRerollDialogListeners(html);
             }
-        }, dialogOptions);
+        });
 
-        dialog.render(true);
-        
     } catch (error) {
-        LogUtility.logError("Failed to show reroll damage dialog:", error);
-        ui.notifications.error(CoreUtility.localize("rsr5e.reroll.dialogError"));
+        LogUtility.logError("Failed to create reroll audit log:", error);
     }
 }
 
 /**
- * Extracts dice data from damage rolls for the reroll dialog.
- * @param {ChatMessage} message The chat message containing damage rolls.
- * @returns {Array} Array of dice group data for the dialog.
+ * Builds a summary of reroll changes for the audit log.
+ * @param {ChatMessage} originalMessage The original message.
+ * @param {Array} selectedDice The selected dice data.
+ * @param {Array} newRolls The new rolls made.
+ * @returns {Array} Summary data for display.
  * @private
  */
-function _extractDiceDataFromMessage(message) {
-    const diceGroups = [];
-    const damageRolls = message.rolls.filter(r => r instanceof CONFIG.Dice.DamageRoll);
+function _buildRerollSummary(originalMessage, selectedDice, newRolls) {
+    const summary = [];
+    const damageRolls = originalMessage.rolls.filter(r => r instanceof CONFIG.Dice.DamageRoll);
+    let newRollIndex = 0;
     
-    damageRolls.forEach((roll, rollIndex) => {
-        const dieTerms = roll.terms.filter(term => term instanceof foundry.dice.terms.Die);
+    selectedDice.forEach(die => {
+        const roll = damageRolls[die.rollIndex];
+        if (!roll) return;
         
-        dieTerms.forEach((term, termIndex) => {
-            // Try to determine damage type from roll options or formula
-            const damageType = _getDamageTypeFromTerm(roll, termIndex);
-            
-            const results = term.results.map((result, index) => ({
-                index: index,
-                result: result.result,
-                active: result.active !== false
-            })).filter(r => r.active); // Only show active results
-            
-            if (results.length > 0) {
-                diceGroups.push({
-                    rollIndex: rollIndex,
-                    termIndex: termIndex,
-                    faces: term.faces,
-                    rollCount: term.number,
-                    damageType: damageType,
-                    results: results
-                });
-            }
-        });
-    });
-    
-    return diceGroups;
-}
-
-/**
- * Attempts to determine damage type from roll term context.
- * @param {DamageRoll} roll The damage roll.
- * @param {number} termIndex The index of the term.
- * @returns {string|null} The damage type if found.
- * @private
- */
-function _getDamageTypeFromTerm(roll, termIndex) {
-    // This is a simplified implementation - in practice you might need more sophisticated parsing
-    if (roll.options?.type) {
-        return roll.options.type;
-    }
-    
-    // Try to extract from roll formula or options
-    if (roll.terms && roll.terms[termIndex + 1] && roll.terms[termIndex + 1].term) {
-        return roll.terms[termIndex + 1].term;
-    }
-    
-    return null;
-}
-
-/**
- * Sets up event listeners for the reroll dialog.
- * @param {jQuery} html The dialog HTML element.
- * @private
- */
-function _setupRerollDialogListeners(html) {
-    // Update selected count when checkboxes change
-    html.find('input[name="reroll-die"]').on('change', function() {
-        const selectedCount = html.find('input[name="reroll-die"]:checked').length;
-        html.find('.selected-count').text(selectedCount);
-    });
-    
-    // Quick select options
-    html.find('#reroll-ones').on('change', function() {
-        const checked = this.checked;
-        html.find('input[name="reroll-die"]').each(function() {
-            const result = parseInt($(this).data('die-result'));
-            if (result === 1) {
-                $(this).prop('checked', checked);
-            }
-        });
-        // Trigger change to update count
-        html.find('input[name="reroll-die"]').first().trigger('change');
-    });
-    
-    html.find('#reroll-low').on('change', function() {
-        const checked = this.checked;
-        html.find('input[name="reroll-die"]').each(function() {
-            const result = parseInt($(this).data('die-result'));
-            const faces = parseInt($(this).closest('.dice-group').find('.dice-group-title').text().match(/\d+/)[0]);
-            const lowHalf = Math.floor(faces / 2);
-            if (result <= lowHalf) {
-                $(this).prop('checked', checked);
-            }
-        });
-        // Trigger change to update count
-        html.find('input[name="reroll-die"]').first().trigger('change');
-    });
-}
-
-/**
- * Handles the reroll confirmation from the dialog.
- * @param {ChatMessage} message The original chat message.
- * @param {jQuery} html The dialog HTML element.
- * @private
- */
-async function _handleRerollConfirm(message, html) {
-    try {
-        // Collect selected dice data
-        const selectedDice = [];
+        const term = roll.terms.filter(t => t instanceof foundry.dice.terms.Die)[die.termIndex];
+        if (!term) return;
         
-        html.find('input[name="reroll-die"]:checked').each(function() {
-            const $this = $(this);
-            selectedDice.push({
-                rollIndex: parseInt($this.data('roll-index')),
-                termIndex: parseInt($this.data('term-index')),
-                dieIndex: parseInt($this.data('die-index')),
-                currentResult: parseInt($this.data('die-result'))
-            });
-        });
+        const result = term.results[die.dieIndex];
+        if (!result || !result.wasRerolled) return;
         
-        if (selectedDice.length === 0) {
-            ui.notifications.warn(CoreUtility.localize("rsr5e.reroll.noDiceSelected"));
-            return;
-        }
-
-        LogUtility.log("Rerolling dice:", selectedDice);
-
-        // Group dice by roll and term for efficient processing
-        const rerollsByRoll = _groupRerollsByRoll(selectedDice);
-        const newRolls = [];
-
-        // Process each damage roll that has dice to reroll
-        for (const [rollIndex, terms] of Object.entries(rerollsByRoll)) {
-            const rollIdx = parseInt(rollIndex);
-            const originalRoll = message.rolls.filter(r => r instanceof CONFIG.Dice.DamageRoll)[rollIdx];
-            
-            if (!originalRoll) {
-                LogUtility.logError(`Could not find damage roll at index ${rollIdx}`);
-                continue;
-            }
-
-            // Create new rolls for each die that needs rerolling
-            for (const [termIndex, diceIndices] of Object.entries(terms)) {
-                const termIdx = parseInt(termIndex);
-                const originalTerm = originalRoll.terms.filter(t => t instanceof foundry.dice.terms.Die)[termIdx];
-                
-                if (!originalTerm) {
-                    LogUtility.logError(`Could not find die term at index ${termIdx} in roll ${rollIdx}`);
-                    continue;
-                }
-
-                // Create a new roll for just the dice being rerolled
-                const rerollCount = diceIndices.length;
-                const rerollFormula = `${rerollCount}d${originalTerm.faces}`;
-                const rerollRoll = new Roll(rerollFormula);
-                
-                await rerollRoll.evaluate();
-                newRolls.push(rerollRoll);
-
-                // Store old results and replace with new ones
-                diceIndices.forEach((dieIndex, i) => {
-                    if (i < rerollRoll.dice[0].results.length) {
-                        const oldResult = originalTerm.results[dieIndex];
-                        const newResult = rerollRoll.dice[0].results[i];
-                        
-                        // Store the old result value and replace with new
-                        originalTerm.results[dieIndex] = {
-                            result: newResult.result,
-                            active: true,
-                            rerolled: false,
-                            oldResult: oldResult.result, // Store the old value for display
-                            wasRerolled: true // Mark this as having been rerolled
-                        };
-                    }
-                });
-            }
-
-            // Reset roll calculations after modifying results
-            RollUtility.resetRollGetters(originalRoll);
-        }
-
-        // Trigger Dice3D animation for the new rolls if available
-        if (newRolls.length > 0) {
-            await CoreUtility.tryRollDice3D(newRolls);
-        }
-
-        // Update the chat message with the modified rolls
-        await ChatUtility.updateChatMessage(message, {
-            rolls: message.rolls
+        summary.push({
+            faces: term.faces,
+            oldResult: result.oldResult,
+            newResult: result.result,
+            change: result.result - result.oldResult
+        });
+        });
         });
 
         // Create audit log chat message
@@ -1232,15 +1096,37 @@ async function _handleRerollConfirm(message, html) {
  */
 function _groupRerollsByRoll(selectedDice) {
     const grouped = {};
+    });
+
+        // Create audit log chat message
+        await _createRerollAuditLog(message, selectedDice, newRolls);
+
+        // Play roll sound if Dice3D is not enabled
+        if (!game.dice3d || !game.dice3d.isEnabled()) {
+            CoreUtility.playRollSound();
+        }
+
+        // Show success notification
+        ui.notifications.info(CoreUtility.localize("rsr5e.reroll.success", { count: selectedDice.length }));
+
+    } catch (error) {
+        LogUtility.logError("Failed to reroll damage dice:", error);
+        ui.notifications.error(CoreUtility.localize("rsr5e.reroll.error"));
+    }
+}
+
+/**
+ * Groups selected dice by roll index and term index for efficient processing.
+ * @param {Array} selectedDice Array of selected dice data.
+ * @returns {Object} Grouped data structure.
+ * @private
+ */
+function _groupRerollsByRoll(selectedDice) {
+    const grouped = {};
     
-    selectedDice.forEach(die => {
-        if (!grouped[die.rollIndex]) {
-            grouped[die.rollIndex] = {};
-        }
-        if (!grouped[die.rollIndex][die.termIndex]) {
-            grouped[die.rollIndex][die.termIndex] = [];
-        }
-        grouped[die.rollIndex][die.termIndex].push(die.dieIndex);
+    return summary;
+}
+}        grouped[die.rollIndex][die.termIndex].push(die.dieIndex);
     });
     
     return grouped;

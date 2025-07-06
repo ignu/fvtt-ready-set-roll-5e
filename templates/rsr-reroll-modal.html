@@ -9,9 +9,9 @@
         <div class="dice-group" data-roll-index="{{rollIndex}}" data-term-index="{{termIndex}}">
             <h4 class="dice-group-title">
                 {{#if damageType}}
-                    {{rollCount}}{{faces}} {{damageType}} {{ localize "rsr5e.reroll.damage" }}
+                    d{{faces}} {{damageType}} {{ localize "rsr5e.reroll.damage" }}
                 {{else}}
-                    {{rollCount}}{{faces}} {{ localize "rsr5e.reroll.damage" }}
+                    d{{faces}} {{ localize "rsr5e.reroll.damage" }}
                 {{/if}}
             </h4>
             
@@ -24,7 +24,7 @@
                            data-term-index="{{../termIndex}}" 
                            data-die-index="{{index}}"
                            data-die-result="{{result}}">
-                    <span class="die-display">{{result}}</span>
+                    <span class="roll die d{{../faces}} {{classes}}">{{result}}</span>
                 </label>
                 {{/each}}
             </div>
@@ -38,9 +38,19 @@
                 <input type="checkbox" name="reroll-ones" id="reroll-ones">
                 {{ localize "rsr5e.reroll.selectOnes" }}
             </label>
+        </div>
+    </div>
+    
+    <div class="form-group">
+        <label>{{ localize "rsr5e.reroll.keepOption" }}</label>
+        <div class="keep-options">
             <label>
-                <input type="checkbox" name="reroll-low" id="reroll-low">
-                {{ localize "rsr5e.reroll.selectLowHalf" }}
+                <input type="radio" name="keep-option" value="new" checked>
+                {{ localize "rsr5e.reroll.keepNew" }}
+            </label>
+            <label>
+                <input type="radio" name="keep-option" value="better">
+                {{ localize "rsr5e.reroll.keepBetter" }}
             </label>
         </div>
     </div>
